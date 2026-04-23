@@ -8,8 +8,13 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'PDL_HIDE_LOGIN_SLUG', 'dang-nhap' );
-define( 'PDL_HIDE_LOGIN_REDIRECT_SLUG', '404' );
+if ( ! defined( 'PDL_HIDE_LOGIN_SLUG' ) ) {
+    define( 'PDL_HIDE_LOGIN_SLUG', 'dang-nhap' );
+}
+
+if ( ! defined( 'PDL_HIDE_LOGIN_REDIRECT_SLUG' ) ) {
+    define( 'PDL_HIDE_LOGIN_REDIRECT_SLUG', '404' );
+}
 
 $GLOBALS['pdl_hide_login_wp_login_php'] = false;
 
@@ -45,6 +50,95 @@ function pdl_hide_login_redirect_url( $scheme = null ) {
     }
 
     return home_url( '/', $scheme ) . '?' . pdl_hide_login_redirect_slug();
+}
+
+function pdl_hide_login_active_regular_plugins() {
+    $plugins = (array) get_option( 'active_plugins', array() );
+
+    if ( is_multisite() ) {
+        $network_plugins = array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) );
+        $plugins         = array_merge( $plugins, $network_plugins );
+    }
+
+    return array_unique( $plugins );
+}
+
+function pdl_hide_login_regular_plugin_is_active( $plugin_file ) {
+    return in_array( $plugin_file, pdl_hide_login_active_regular_plugins(), true );
+}
+
+function pdl_hide_login_sync_wps_hide_login_options() {
+    $login_slug    = pdl_hide_login_slug();
+    $redirect_slug = pdl_hide_login_redirect_slug();
+
+    if ( get_option( 'whl_page' ) !== $login_slug ) {
+        update_option( 'whl_page', $login_slug );
+    }
+
+    if ( get_option( 'whl_redirect_admin' ) !== $redirect_slug ) {
+        update_option( 'whl_redirect_admin', $redirect_slug );
+    }
+
+    if ( is_multisite() ) {
+        if ( get_site_option( 'whl_page' ) !== $login_slug ) {
+            update_site_option( 'whl_page', $login_slug );
+        }
+
+        if ( get_site_option( 'whl_redirect_admin' ) !== $redirect_slug ) {
+            update_site_option( 'whl_redirect_admin', $redirect_slug );
+        }
+    }
+}
+
+function pdl_hide_login_admin_conflict_notice( $message ) {
+    add_action(
+        'admin_notices',
+        function () use ( $message ) {
+            if ( current_user_can( 'manage_options' ) ) {
+                echo '<div class="notice notice-warning"><p>' . esc_html( $message ) . '</p></div>';
+            }
+        }
+    );
+}
+
+function pdl_hide_login_should_skip_module() {
+    if ( defined( 'PDL_HIDE_LOGIN_DISABLE' ) && PDL_HIDE_LOGIN_DISABLE ) {
+        return true;
+    }
+
+    if ( pdl_hide_login_regular_plugin_is_active( 'wps-hide-login/wps-hide-login.php' ) ) {
+        pdl_hide_login_sync_wps_hide_login_options();
+        $GLOBALS['pdl_hide_login_handled_by'] = 'WPS Hide Login';
+        return true;
+    }
+
+    $conflicting_plugins = apply_filters(
+        'pdl_hide_login_conflicting_regular_plugins',
+        array(
+            'rename-wp-login/rename-wp-login.php' => 'Rename wp-login.php',
+        )
+    );
+
+    foreach ( $conflicting_plugins as $plugin_file => $plugin_name ) {
+        if ( pdl_hide_login_regular_plugin_is_active( $plugin_file ) ) {
+            pdl_hide_login_admin_conflict_notice(
+                sprintf(
+                    'PDL Hide Login đã tạm nhường vì phát hiện plugin %s đang active. Hãy tắt plugin đó hoặc cấu hình nó dùng /%s/.',
+                    $plugin_name,
+                    pdl_hide_login_slug()
+                )
+            );
+
+            $GLOBALS['pdl_hide_login_handled_by'] = $plugin_name;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+if ( pdl_hide_login_should_skip_module() ) {
+    return;
 }
 
 function pdl_hide_login_is_wp_login_request( $request ) {

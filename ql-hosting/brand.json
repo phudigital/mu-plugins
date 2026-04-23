@@ -1,0 +1,314 @@
+{
+    "company": "Công Ty TNHH Giải Pháp PDL",
+    "address": "Phường Bình Hòa, Tp. Hồ Chí Minh",
+    "website": "https://pdl.vn",
+    "logo": "https://pdl.vn/wp-content/uploads/2025/12/logopdlphudigital.png",
+    "updated_at": "2025-04-24",
+    "notify": {
+        "active": false,
+        "type": "info",
+        "message": "🎉 PDL khuyến mãi gia hạn hosting tháng 4.",
+        "button_text": "Xem ưu đãi",
+        "button_url": "https://pdl.vn/"
+    },
+    "contacts": [
+        {
+            "label": "Hotline CSKH",
+            "phone": "0961330088",
+            "display": "0961 33 0088",
+            "link_url": "https://zalo.me/0961330088"
+        },
+        {
+            "label": "Email",
+            "email": "info@pdl.vn"
+        }
+    ],
+    "domains": {
+        "360vr.com.vn": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "anvietcons.com": {
+            "expire": "2026-11-16",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "bdsnhatrang.com.vn": {
+            "expire": "2026-08-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "bookingreal.com": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "duckhailand.com": {
+            "expire": "2026-10-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "ecode.pro": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "gotranle.com": {
+            "expire": "2026-10-25",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "hosoditru.vn": {
+            "expire": "2027-01-15",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "inlydep.vn": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "karofmiennam.vn": {
+            "expire": "2026-11-21",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "lcmart.vn": {
+            "expire": "2026-11-04",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "myphamloiphuong.com": {
+            "expire": "2026-06-15",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "pdl.vn": {
+            "expire": "2029-08-15",
+            "hosting_note": "",
+            "notify": {
+                "active": true,
+                "type": "warning",
+                "message": "Vui lòng xem video hướng dẫn cập nhật website tháng này.",
+                "button_text": "Mở video",
+                "button_url": ""
+            }
+        },
+        "phamphu.net": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "phongthuydo.com": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "phudigital.com": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "phuongland.com": {
+            "expire": "2026-10-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "quangthuthiem.com": {
+            "expire": "2027-04-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "ruaxekakawa.com": {
+            "expire": "2026-06-15",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "store18.vn": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "sunnhatrang.net.vn": {
+            "expire": "2026-11-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "warning",
+                "message": "Vui lòng cập nhật plugin WooCommerce lên phiên bản mới nhất.",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "thanhlongcic.com": {
+            "expire": "2026-09-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "toanthanhcons.com": {
+            "expire": "2026-11-16",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "vmcc.vn": {
+            "expire": "2026-07-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "web.pdl.vn": {
+            "expire": "",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        },
+        "ximangukim.com": {
+            "expire": "2026-12-01",
+            "hosting_note": "",
+            "notify": {
+                "active": false,
+                "type": "info",
+                "message": "",
+                "button_text": "",
+                "button_url": ""
+            }
+        }
+    }
+}

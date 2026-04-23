@@ -1,0 +1,13 @@
+Options -Indexes
+
+<FilesMatch "^(api|cron|index)\.php$">
+  Require all granted
+</FilesMatch>
+
+<FilesMatch "\.(json|log)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "^config\.php$">
+  Require all denied
+</FilesMatch>

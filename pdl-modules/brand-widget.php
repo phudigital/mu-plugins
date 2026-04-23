@@ -159,7 +159,7 @@ function pdl_dashboard_widget_content() {
     }
     var domain=location.hostname.replace(/^www\./,'');
     var bust=Math.floor(Date.now()/3600000);
-    fetch('https://pdl.vn/brand.json?_='+bust)
+    fetch('https://app.pdl.vn/ql-hosting/brand.json?_='+bust)
         .then(function(r){return r.json();})
         .then(function(d){
             var upd=d.updated_at?' &nbsp;&middot;&nbsp; Cập nhật: '+formatDate(d.updated_at):'';
