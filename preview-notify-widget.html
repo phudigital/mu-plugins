@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDL Widget Preview</title>
+  <style>
+    :root {
+      --pdl-navy: #273253;
+      --pdl-soft: #eef0f6;
+      --pdl-border: #dde1ef;
+      --pdl-info-bg: #e8f0fe;
+      --pdl-info-text: #1a4fa0;
+      --pdl-info-border: #3b6fd4;
+      --pdl-warning-bg: #fff8e1;
+      --pdl-warning-text: #8a5c00;
+      --pdl-warning-border: #f5a623;
+      --pdl-page: #f4f6fb;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(39, 50, 83, 0.08), transparent 30%),
+        linear-gradient(180deg, #f8f9fc 0%, var(--pdl-page) 100%);
+      color: #162032;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .intro {
+      margin-bottom: 22px;
+    }
+
+    .intro h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.2;
+      color: var(--pdl-navy);
+    }
+
+    .intro p {
+      margin: 0;
+      max-width: 760px;
+      color: #5d6786;
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) 380px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(39, 50, 83, 0.08);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(31, 40, 63, 0.08);
+      backdrop-filter: blur(8px);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      color: var(--pdl-navy);
+    }
+
+    .note {
+      font-size: 13px;
+      color: #66708f;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .admin-surface {
+      background: #f0f2f7;
+      border-radius: 18px;
+      padding: 20px;
+      border: 1px solid #e3e7f1;
+    }
+
+    .phone-frame {
+      width: 100%;
+      max-width: 340px;
+      margin: 0 auto;
+      border-radius: 28px;
+      background: #202637;
+      padding: 10px;
+      box-shadow: 0 20px 50px rgba(32, 38, 55, 0.26);
+    }
+
+    .phone-screen {
+      background: #f0f2f7;
+      border-radius: 20px;
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    .pdl-widget-wrap .pw {
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      box-shadow: 0 8px 24px rgba(39, 50, 83, 0.08);
+    }
+
+    .pdl-widget-wrap .pw-head {
+      background: var(--pdl-navy);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .pdl-widget-wrap .pw-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--pdl-navy);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .pdl-widget-wrap .pw-htitle {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0 0 3px;
+    }
+
+    .pdl-widget-wrap .pw-hsub {
+      color: rgba(255,255,255,.68);
+      font-size: 11px;
+      margin: 0;
+    }
+
+    .pdl-widget-wrap .pw-bar {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border-left: 3px solid;
+      border-bottom: 1px solid transparent;
+    }
+
+    .pdl-widget-wrap .pw-bar.info {
+      background: var(--pdl-info-bg);
+      color: var(--pdl-info-text);
+      border-left-color: var(--pdl-info-border);
+      border-bottom-color: #d0defa;
+    }
+
+    .pdl-widget-wrap .pw-bar.warning {
+      background: var(--pdl-warning-bg);
+      color: var(--pdl-warning-text);
+      border-left-color: var(--pdl-warning-border);
+      border-bottom-color: #faecc0;
+    }
+
+    .pdl-widget-wrap .pw-bar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .pdl-widget-wrap .pw-bar-text {
+      min-width: 0;
+      line-height: 1.45;
+    }
+
+    .pdl-widget-wrap .pw-bar-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 12px;
+      border-radius: 999px;
+      color: var(--pdl-navy);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: 0 6px 14px rgba(39,50,83,.12);
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+      background: transparent;
+    }
+
+    .pdl-widget-wrap .pw-bar-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 16px rgba(39,50,83,.18);
+      opacity: .96;
+    }
+
+    .pdl-widget-wrap .pw-inner {
+      padding: 14px 14px 12px;
+    }
+
+    .pdl-widget-wrap .pw-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .pdl-widget-wrap .pw-card {
+      background: var(--pdl-soft);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .pdl-widget-wrap .pw-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      background: var(--pdl-navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pdl-widget-wrap .pw-cl {
+      font-size: 10px;
+      font-weight: 700;
+      color: #8a93b8;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .pdl-widget-wrap .pw-cv {
+      font-size: 12.5px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--pdl-navy);
+    }
+
+    .pdl-widget-wrap .pw-foot {
+      border-top: 1px solid var(--pdl-border);
+      padding-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pdl-widget-wrap .pw-copy {
+      font-size: 11px;
+      color: #8a93b8;
+    }
+
+    .pdl-widget-wrap .pw-link {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--pdl-navy);
+      text-decoration: none;
+    }
+
+    .json-block {
+      margin-top: 16px;
+      background: #121827;
+      color: #d8def2;
+      border-radius: 16px;
+      padding: 16px;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .json-block code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    @media (max-width: 960px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        padding: 20px 14px 36px;
+      }
+
+      .intro h1 {
+        font-size: 22px;
+      }
+
+      .pdl-widget-wrap .pw-head {
+        padding: 14px 16px;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .pdl-widget-wrap .pw-logo {
+        width: 42px;
+        height: 42px;
+      }
+
+      .pdl-widget-wrap .pw-htitle {
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .pdl-widget-wrap .pw-hsub {
+        font-size: 10.5px;
+        line-height: 1.45;
+      }
+
+      .pdl-widget-wrap .pw-bar {
+        padding: 10px 14px;
+      }
+
+      .pdl-widget-wrap .pw-bar-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      .pdl-widget-wrap .pw-bar-btn {
+        width: 100%;
+        padding: 9px 12px;
+      }
+
+      .pdl-widget-wrap .pw-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pdl-widget-wrap .pw-foot {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="intro">
+      <h1>Preview thông báo `notify.message` trong admin</h1>
+      <p>
+        Đây là bản HTML mô phỏng widget PDL trong Dashboard WordPress. Mình dựng sẵn một ví dụ
+        có nội dung hướng dẫn sử dụng và một nút mở video để bạn xem trước cách hiển thị.
+      </p>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <h2>Desktop Preview</h2>
+        <div class="note">
+          Trên desktop, `message` sẽ nằm trong thanh thông báo ngay dưới header. Nếu có
+          `button_text` và `button_url`, nút sẽ xuất hiện cùng hàng phía sau nội dung.
+        </div>
+
+        <div class="admin-surface">
+          <div class="pdl-widget-wrap">
+            <div class="pw">
+              <div class="pw-head">
+                <div class="pw-logo">PDL</div>
+                <div>
+                  <p class="pw-htitle">Công Ty TNHH Giải Pháp PDL</p>
+                  <p class="pw-hsub">Phường Bình Hòa, Tp. Hồ Chí Minh · Cập nhật: 20/04/2026</p>
+                </div>
+              </div>
+
+              <div class="pw-bar info">
+                <div class="pw-bar-inner">
+                  <span class="pw-bar-text">🎥 Video hướng dẫn sử dụng widget admin đã sẵn sàng. Bấm để xem thao tác cập nhật nội dung và thông báo.</span>
+                  <a class="pw-bar-btn" href="#">Mở video</a>
+                </div>
+              </div>
+
+              <div class="pw-bar warning">
+                <div class="pw-bar-inner">
+                  <span class="pw-bar-text">Hosting sẽ hết hạn sau 12 ngày - 01/05/2026</span>
+                </div>
+              </div>
+
+              <div class="pw-inner">
+                <div class="pw-grid">
+                  <div class="pw-card">
+                    <div class="pw-icon">HP</div>
+                    <div>
+                      <span class="pw-cl">Hỗ trợ kỹ thuật</span>
+                      <p class="pw-cv">0901 11 0008</p>
+                    </div>
+                  </div>
+
+                  <div class="pw-card">
+                    <div class="pw-icon">CS</div>
+                    <div>
+                      <span class="pw-cl">Hotline CSKH</span>
+                      <p class="pw-cv">0961 33 0088</p>
+                    </div>
+                  </div>
+
+                  <div class="pw-card">
+                    <div class="pw-icon">@</div>
+                    <div>
+                      <span class="pw-cl">Email</span>
+                      <p class="pw-cv">info@pdl.vn</p>
+                    </div>
+                  </div>
+
+                  <div class="pw-card">
+                    <div class="pw-icon">WB</div>
+                    <div>
+                      <span class="pw-cl">Website</span>
+                      <p class="pw-cv">pdl.vn</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pw-foot">
+                  <span class="pw-copy">© 2026 Công Ty TNHH Giải Pháp PDL</span>
+                  <a class="pw-link" href="#">pdl.vn →</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="json-block"><code>{
+  "notify": {
+    "active": true,
+    "type": "info",
+    "message": "🎥 Video hướng dẫn sử dụng widget admin đã sẵn sàng. Bấm để xem thao tác cập nhật nội dung và thông báo.",
+    "button_text": "Mở video",
+    "button_url": "https://example.com/video-huong-dan"
+  }
+}</code></div>
+      </div>
+
+      <div class="panel">
+        <h2>Mobile Preview</h2>
+        <div class="note">
+          Trên điện thoại, thanh thông báo sẽ tự xếp dọc: nội dung ở trên, nút ở dưới để dễ bấm.
+        </div>
+
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="pdl-widget-wrap">
+              <div class="pw">
+                <div class="pw-head">
+                  <div class="pw-logo">PDL</div>
+                  <div>
+                    <p class="pw-htitle">Công Ty TNHH Giải Pháp PDL</p>
+                    <p class="pw-hsub">Phường Bình Hòa, Tp. Hồ Chí Minh</p>
+                  </div>
+                </div>
+
+                <div class="pw-bar info">
+                  <div class="pw-bar-inner">
+                    <span class="pw-bar-text">🎥 Video hướng dẫn sử dụng widget admin đã sẵn sàng. Bấm để xem thao tác cập nhật nội dung và thông báo.</span>
+                    <a class="pw-bar-btn" href="#">Mở video</a>
+                  </div>
+                </div>
+
+                <div class="pw-inner">
+                  <div class="pw-grid">
+                    <div class="pw-card">
+                      <div class="pw-icon">HP</div>
+                      <div>
+                        <span class="pw-cl">Hỗ trợ</span>
+                        <p class="pw-cv">0901 11 0008</p>
+                      </div>
+                    </div>
+
+                    <div class="pw-card">
+                      <div class="pw-icon">@</div>
+                      <div>
+                        <span class="pw-cl">Email</span>
+                        <p class="pw-cv">info@pdl.vn</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="pw-foot">
+                    <span class="pw-copy">© 2026 PDL</span>
+                    <a class="pw-link" href="#">pdl.vn →</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

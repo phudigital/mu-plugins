@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDL Widget Full Preview</title>
+  <style>
+    :root{
+      --navy:#273253;
+      --soft:#eef0f6;
+      --border:#dde1ef;
+      --page:#f4f6fb;
+      --info-bg:#e8f0fe;
+      --info-text:#1a4fa0;
+      --info-border:#3b6fd4;
+      --warning-bg:#fff8e1;
+      --warning-text:#8a5c00;
+      --warning-border:#f5a623;
+      --success-bg:#e8f5e9;
+      --success-text:#1b5e20;
+      --success-border:#43a047;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:#17233a;
+      background:
+        radial-gradient(circle at top left, rgba(39,50,83,.08), transparent 28%),
+        linear-gradient(180deg, #fafbfe 0%, var(--page) 100%);
+    }
+
+    .page{
+      max-width:1180px;
+      margin:0 auto;
+      padding:32px 20px 48px;
+    }
+
+    h1{
+      margin:0 0 8px;
+      font-size:28px;
+      line-height:1.2;
+      color:var(--navy);
+    }
+
+    .intro{
+      margin:0 0 22px;
+      max-width:780px;
+      color:#66708f;
+      line-height:1.6;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(320px,1fr) 380px;
+      gap:24px;
+      align-items:start;
+    }
+
+    .panel{
+      background:rgba(255,255,255,.8);
+      border:1px solid rgba(39,50,83,.08);
+      border-radius:22px;
+      padding:18px;
+      box-shadow:0 20px 60px rgba(31,40,63,.08);
+      backdrop-filter:blur(8px);
+    }
+
+    .panel h2{
+      margin:0 0 10px;
+      color:var(--navy);
+      font-size:16px;
+    }
+
+    .note{
+      margin:0 0 14px;
+      font-size:13px;
+      line-height:1.55;
+      color:#6b7594;
+    }
+
+    .admin-surface{
+      background:#f0f2f7;
+      border:1px solid #e3e7f1;
+      border-radius:18px;
+      padding:20px;
+    }
+
+    .phone{
+      max-width:340px;
+      margin:0 auto;
+      padding:10px;
+      border-radius:28px;
+      background:#202637;
+      box-shadow:0 22px 50px rgba(32,38,55,.26);
+    }
+
+    .phone-screen{
+      background:#f0f2f7;
+      border-radius:20px;
+      padding:14px;
+      overflow:hidden;
+    }
+
+    .pw{
+      background:#fff;
+      border-radius:14px;
+      overflow:hidden;
+      box-shadow:0 10px 24px rgba(39,50,83,.08);
+    }
+
+    .pw-head{
+      background:var(--navy);
+      padding:16px 20px;
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .pw-logo{
+      width:48px;
+      height:48px;
+      border-radius:8px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+      color:var(--navy);
+      font-size:12px;
+      font-weight:800;
+    }
+
+    .pw-htitle{
+      margin:0 0 3px;
+      color:#fff;
+      font-size:14px;
+      font-weight:700;
+    }
+
+    .pw-hsub{
+      margin:0;
+      color:rgba(255,255,255,.68);
+      font-size:11px;
+    }
+
+    .pw-bar{
+      padding:9px 16px;
+      font-size:12px;
+      font-weight:600;
+      border-left:3px solid;
+      border-bottom:1px solid transparent;
+    }
+
+    .pw-bar.info{
+      background:var(--info-bg);
+      color:var(--info-text);
+      border-left-color:var(--info-border);
+      border-bottom-color:#d0defa;
+    }
+
+    .pw-bar.warning{
+      background:var(--warning-bg);
+      color:var(--warning-text);
+      border-left-color:var(--warning-border);
+      border-bottom-color:#faecc0;
+    }
+
+    .pw-bar.success{
+      background:var(--success-bg);
+      color:var(--success-text);
+      border-left-color:var(--success-border);
+      border-bottom-color:#c5e8c7;
+    }
+
+    .pw-bar-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .pw-bar-text{
+      min-width:0;
+      line-height:1.45;
+    }
+
+    .pw-bar-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:3px 12px;
+      border-radius:999px;
+      color:var(--navy);
+      text-decoration:none;
+      font-size:11px;
+      font-weight:700;
+      white-space:nowrap;
+      box-shadow:0 6px 14px rgba(39,50,83,.12);
+      transition:transform .18s ease,box-shadow .18s ease,opacity .18s ease;
+      background:transparent;
+    }
+
+    .pw-bar-btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 8px 16px rgba(39,50,83,.18);
+      opacity:.96;
+    }
+
+    .pw-inner{
+      padding:14px 14px 12px;
+    }
+
+    .pw-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+      margin-bottom:12px;
+    }
+
+    .pw-card{
+      background:var(--soft);
+      border-radius:8px;
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      gap:9px;
+    }
+
+    .pw-icon{
+      width:32px;
+      height:32px;
+      border-radius:7px;
+      background:var(--navy);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .pw-cl{
+      display:block;
+      margin-bottom:2px;
+      color:#8a93b8;
+      font-size:10px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+
+    .pw-cv{
+      margin:0;
+      color:var(--navy);
+      font-size:12.5px;
+      font-weight:700;
+    }
+
+    .pw-cv a{
+      color:var(--navy);
+      text-decoration:none;
+    }
+
+    .pw-foot{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding-top:10px;
+      border-top:1px solid var(--border);
+    }
+
+    .pw-copy{
+      color:#8a93b8;
+      font-size:11px;
+    }
+
+    .pw-link{
+      color:var(--navy);
+      text-decoration:none;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    pre{
+      margin:16px 0 0;
+      background:#121827;
+      color:#dbe3fb;
+      border-radius:16px;
+      padding:16px;
+      overflow:auto;
+      font-size:12px;
+      line-height:1.65;
+    }
+
+    @media (max-width:960px){
+      .layout{grid-template-columns:1fr}
+    }
+
+    @media (max-width:680px){
+      .page{padding:20px 14px 36px}
+      h1{font-size:22px}
+      .pw-head{
+        padding:14px 16px;
+        gap:12px;
+        align-items:flex-start;
+      }
+      .pw-logo{
+        width:42px;
+        height:42px;
+      }
+      .pw-htitle{
+        font-size:13px;
+        line-height:1.35;
+      }
+      .pw-hsub{
+        font-size:10.5px;
+        line-height:1.45;
+      }
+      .pw-bar{
+        padding:10px 14px;
+      }
+      .pw-bar-inner{
+        flex-direction:column;
+        align-items:stretch;
+        gap:10px;
+      }
+      .pw-bar-btn{
+        width:100%;
+        padding:9px 12px;
+      }
+      .pw-grid{
+        grid-template-columns:1fr;
+      }
+      .pw-foot{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Preview đầy đủ các trường trong widget</h1>
+    <p class="intro">
+      Mẫu này mô phỏng trường hợp có đủ thông báo chung của PDL, thông báo riêng của domain,
+      hạn hosting, `hosting_note`, và 2 box contact hiện tại là Hotline CSKH và Email.
+    </p>
+
+    <div class="layout">
+      <div class="panel">
+        <h2>Desktop Preview</h2>
+        <p class="note">
+          Thứ tự hiển thị trong admin sẽ là: thông báo chung → thông báo riêng domain → hạn hosting → contact.
+        </p>
+
+        <div class="admin-surface">
+          <div class="pw">
+            <div class="pw-head">
+              <div class="pw-logo">PDL</div>
+              <div>
+                <p class="pw-htitle">Công Ty TNHH Giải Pháp PDL</p>
+                <p class="pw-hsub">Phường Bình Hòa, Tp. Hồ Chí Minh · Cập nhật: 20/04/2026</p>
+              </div>
+            </div>
+
+            <div class="pw-bar info">
+              <div class="pw-bar-inner">
+                <span class="pw-bar-text">🎉 PDL khuyến mãi gia hạn hosting tháng 4 — giảm 20%.</span>
+                <a class="pw-bar-btn" href="#">Xem ưu đãi</a>
+              </div>
+            </div>
+
+            <div class="pw-bar warning">
+              <div class="pw-bar-inner">
+                <span class="pw-bar-text">Vui lòng xem video hướng dẫn cập nhật website tháng này.</span>
+                <a class="pw-bar-btn" href="#">Mở video</a>
+              </div>
+            </div>
+
+            <div class="pw-bar success">
+              <div class="pw-bar-inner">
+                <span class="pw-bar-text">Dịch vụ còn hạn đến 15/08/2029 (1200 ngày) (iNet)</span>
+              </div>
+            </div>
+
+            <div class="pw-inner">
+              <div class="pw-grid">
+                <div class="pw-card">
+                  <div class="pw-icon">CS</div>
+                  <div>
+                    <span class="pw-cl">Hotline CSKH</span>
+                    <p class="pw-cv"><a href="#">0961 33 0088</a></p>
+                  </div>
+                </div>
+                <div class="pw-card">
+                  <div class="pw-icon">@</div>
+                  <div>
+                    <span class="pw-cl">Email</span>
+                    <p class="pw-cv"><a href="#">info@pdl.vn</a></p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pw-foot">
+                <span class="pw-copy">© 2026 Công Ty TNHH Giải Pháp PDL</span>
+                <a class="pw-link" href="#">pdl.vn →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <pre>{
+  "notify": {
+    "active": true,
+    "type": "info",
+    "message": "🎉 PDL khuyến mãi gia hạn hosting tháng 4 — giảm 20%.",
+    "button_text": "Xem ưu đãi",
+    "button_url": "https://pdl.vn/khuyen-mai"
+  },
+  "contacts": [
+    {
+      "label": "Hotline CSKH",
+      "phone": "0961330088",
+      "display": "0961 33 0088",
+      "link_url": "https://zalo.me/0961330088"
+    },
+    {
+      "label": "Email",
+      "email": "info@pdl.vn"
+    }
+  ],
+  "domains": {
+    "pdl.vn": {
+      "expire": "2029-08-15",
+      "hosting_note": "iNet",
+      "notify": {
+        "active": true,
+        "type": "warning",
+        "message": "Vui lòng xem video hướng dẫn cập nhật website tháng này.",
+        "button_text": "Mở video",
+        "button_url": "https://example.com/video"
+      }
+    }
+  }
+}</pre>
+      </div>
+
+      <div class="panel">
+        <h2>Mobile Preview</h2>
+        <p class="note">
+          Trên mobile, 3 thanh sẽ xếp dọc và nút sẽ xuống dưới để dễ bấm. Hai box contact cũng xếp một cột.
+        </p>
+
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="pw">
+              <div class="pw-head">
+                <div class="pw-logo">PDL</div>
+                <div>
+                  <p class="pw-htitle">Công Ty TNHH Giải Pháp PDL</p>
+                  <p class="pw-hsub">Phường Bình Hòa, Tp. Hồ Chí Minh</p>
+                </div>
+              </div>
+
+              <div class="pw-bar info">
+                <div class="pw-bar-inner">
+                  <span class="pw-bar-text">🎉 PDL khuyến mãi gia hạn hosting tháng 4 — giảm 20%.</span>
+                  <a class="pw-bar-btn" href="#">Xem ưu đãi</a>
+                </div>
+              </div>
+
+              <div class="pw-bar warning">
+                <div class="pw-bar-inner">
+                  <span class="pw-bar-text">Vui lòng xem video hướng dẫn cập nhật website tháng này.</span>
+                  <a class="pw-bar-btn" href="#">Mở video</a>
+                </div>
+              </div>
+
+              <div class="pw-bar success">
+                <div class="pw-bar-inner">
+                  <span class="pw-bar-text">Dịch vụ còn hạn đến 15/08/2029 (1200 ngày) (iNet)</span>
+                </div>
+              </div>
+
+              <div class="pw-inner">
+                <div class="pw-grid">
+                  <div class="pw-card">
+                    <div class="pw-icon">CS</div>
+                    <div>
+                      <span class="pw-cl">Hotline CSKH</span>
+                      <p class="pw-cv"><a href="#">0961 33 0088</a></p>
+                    </div>
+                  </div>
+                  <div class="pw-card">
+                    <div class="pw-icon">@</div>
+                    <div>
+                      <span class="pw-cl">Email</span>
+                      <p class="pw-cv"><a href="#">info@pdl.vn</a></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pw-foot">
+                  <span class="pw-copy">© 2026 PDL</span>
+                  <a class="pw-link" href="#">pdl.vn →</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
