@@ -135,33 +135,33 @@ $jsVersion = (string) @filemtime(__DIR__ . '/assets/app.js');
                         </div>
                     </div>
                 </div>
+                <div class="signal-strip">
+                    <div class="signal-card">
+                        <small>Tổng domain</small>
+                        <strong id="totalDomains">0</strong>
+                    </div>
+                    <div class="signal-card">
+                        <small>Sắp hết hạn</small>
+                        <strong id="nearExpiry">0</strong>
+                    </div>
+                    <div class="signal-card">
+                        <small>Quá hạn</small>
+                        <strong id="expiredDomains">0</strong>
+                    </div>
+                    <div class="signal-card">
+                        <small>File dữ liệu</small>
+                        <strong id="heroFile">brand.json</strong>
+                    </div>
+                    <div class="signal-card">
+                        <small>Thông báo chung</small>
+                        <strong id="heroNotify">Đang đọc cấu hình</strong>
+                    </div>
+                    <div class="signal-card">
+                        <small>Tháng cao điểm</small>
+                        <strong id="heroPeakMonth">--/----</strong>
+                    </div>
+                </div>
             </section>
-            <div class="signal-strip">
-                <div class="signal-card">
-                    <small>Tổng domain</small>
-                    <strong id="totalDomains">0</strong>
-                </div>
-                <div class="signal-card">
-                    <small>Sắp hết hạn</small>
-                    <strong id="nearExpiry">0</strong>
-                </div>
-                <div class="signal-card">
-                    <small>Quá hạn</small>
-                    <strong id="expiredDomains">0</strong>
-                </div>
-                <div class="signal-card">
-                    <small>File dữ liệu</small>
-                    <strong id="heroFile">brand.json</strong>
-                </div>
-                <div class="signal-card">
-                    <small>Thông báo chung</small>
-                    <strong id="heroNotify">Đang đọc cấu hình</strong>
-                </div>
-                <div class="signal-card">
-                    <small>Tháng cao điểm</small>
-                    <strong id="heroPeakMonth">--/----</strong>
-                </div>
-            </div>
             <div class="section-head">
                 <h2>Cần chú ý</h2>
                 <button id="refreshBtn" class="text-btn icon-text" type="button" title="Tải lại">

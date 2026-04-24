@@ -341,7 +341,10 @@ body.is-dirty #saveBtn {
 }
 
 .overview-hero {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(560px, 640px) minmax(300px, 1fr);
+  align-items: stretch;
+  gap: 16px;
 }
 
 .hero-main,
@@ -349,12 +352,6 @@ body.is-dirty #saveBtn {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
-}
-
-.signal-strip {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 .widget-preview-shell {
@@ -664,13 +661,20 @@ body.is-dirty #saveBtn {
 
 .signal-strip {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
 }
 
 .signal-card {
   display: grid;
-  gap: 8px;
-  padding: 14px;
+  align-content: space-between;
+  gap: 10px;
+  min-height: 82px;
+  padding: 14px 16px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(39, 50, 83, 0.06);
 }
 
 .signal-card strong {
@@ -1001,6 +1005,10 @@ body.is-dirty #saveBtn {
 }
 
 @media (max-width: 1100px) {
+  .overview-hero {
+    grid-template-columns: 1fr;
+  }
+
   .signal-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
