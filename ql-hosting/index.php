@@ -87,53 +87,68 @@ $jsVersion = (string) @filemtime(__DIR__ . '/assets/app.js');
 
         <section class="panel active" data-panel="overview">
             <section class="overview-hero">
-                <div class="hero-main">
-                    <div class="hero-brand">
-                        <div id="brandLogoFrame" class="brand-logo-frame">
-                            <img id="brandLogoPreview" alt="PDL">
-                        </div>
+                <div class="hero-main widget-preview-shell">
+                    <div class="preview-toolbar">
                         <div>
-                            <p class="eyebrow">Workspace</p>
-                            <h2 id="heroCompany">PDL</h2>
-                            <p id="heroAddress" class="muted">Đang tải dữ liệu thương hiệu...</p>
+                            <small>Preview WordPress widget</small>
+                            <strong>Thông tin &amp; Hỗ trợ - PDL</strong>
+                        </div>
+                        <div class="preview-actions">
+                            <span id="previewDomain" class="preview-domain">pdl.vn</span>
+                            <button id="jumpDomainsBtn" class="text-btn icon-text" type="button" title="Sửa domain">
+                                <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/></svg></span>
+                            </button>
+                            <button id="jumpTelegramBtn" class="text-btn icon-text" type="button" title="Telegram">
+                                <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 4 3 11l7 2 2 7 9-16z"/><path d="M10 13 21 4"/></svg></span>
+                            </button>
                         </div>
                     </div>
-                    <div class="hero-pills">
-                        <span id="heroUpdated" class="hero-pill">Cập nhật --/--/----</span>
-                        <span id="heroWebsite" class="hero-pill">pdl.vn</span>
-                    </div>
-                    <div class="hero-quick">
-                        <button id="jumpDomainsBtn" class="ghost icon-text" type="button">
-                            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/></svg></span>
-                            <span>Domain</span>
-                        </button>
-                        <button id="jumpTelegramBtn" class="ghost icon-text" type="button">
-                            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 4 3 11l7 2 2 7 9-16z"/><path d="M10 13 21 4"/></svg></span>
-                            <span>Telegram</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="hero-side">
-                    <div class="hero-status-card">
-                        <small>Tình trạng hệ thống</small>
-                        <div class="hero-status-grid">
-                            <div class="hero-stat">
-                                <span id="totalDomains">0</span>
-                                <label>Tổng domain</label>
-                            </div>
-                            <div class="hero-stat">
-                                <span id="nearExpiry">0</span>
-                                <label>Sắp hết hạn</label>
-                            </div>
-                            <div class="hero-stat">
-                                <span id="expiredDomains">0</span>
-                                <label>Quá hạn</label>
+
+                    <div class="wp-widget-frame">
+                        <div class="wp-widget-title">
+                            <span>Thông tin &amp; Hỗ trợ - PDL</span>
+                            <span class="wp-widget-controls" aria-hidden="true">•••</span>
+                        </div>
+                        <div class="wp-widget-body">
+                            <div id="pdlWidgetPreview" class="pdl-widget-preview">
+                                <div class="pw">
+                                    <div id="previewHead" class="pw-head">
+                                        <div class="pw-logo"><span>PDL</span></div>
+                                        <div><p class="pw-htitle">Đang tải...</p><p class="pw-hsub">pdl.vn</p></div>
+                                    </div>
+                                    <div class="pw-bars">
+                                        <div id="previewNotify" class="pw-bar"></div>
+                                        <div id="previewSite" class="pw-bar"></div>
+                                        <div id="previewExpire" class="pw-bar"></div>
+                                    </div>
+                                    <div class="pw-inner">
+                                        <div id="previewGrid" class="pw-grid">
+                                            <p class="pw-loading">Đang kết nối...</p>
+                                        </div>
+                                        <div class="pw-foot">
+                                            <span id="previewCopy" class="pw-copy">&copy; 2026 Công Ty TNHH Giải Pháp PDL</span>
+                                            <a id="previewLink" class="pw-link" href="https://pdl.vn" target="_blank" rel="noopener noreferrer">pdl.vn &rarr;</a>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
             <div class="signal-strip">
+                <div class="signal-card">
+                    <small>Tổng domain</small>
+                    <strong id="totalDomains">0</strong>
+                </div>
+                <div class="signal-card">
+                    <small>Sắp hết hạn</small>
+                    <strong id="nearExpiry">0</strong>
+                </div>
+                <div class="signal-card">
+                    <small>Quá hạn</small>
+                    <strong id="expiredDomains">0</strong>
+                </div>
                 <div class="signal-card">
                     <small>File dữ liệu</small>
                     <strong id="heroFile">brand.json</strong>

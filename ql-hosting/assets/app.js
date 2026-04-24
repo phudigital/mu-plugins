@@ -208,6 +208,137 @@ function blankDomain() {
   return { expire: '', hosting_note: '', notify: blankNotify() };
 }
 
+const previewIcons = {
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 9.81 19.79 19.79 0 0 1 0 1.12 2 2 0 0 1 2 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+  web: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+};
+
+function normalizeText(value) {
+  return String(value || '').trim();
+}
+
+function safeUrl(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  try {
+    const url = new URL(text, window.location.origin);
+    return /^(https?:|mailto:|tel:)$/.test(url.protocol) ? url.href : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function previewIcon(contact) {
+  if (contact.phone) return previewIcons.phone;
+  if (contact.email) return previewIcons.mail;
+  return previewIcons.web;
+}
+
+function previewContactLink(contact) {
+  const display = normalizeText(contact.display || contact.phone || contact.email || contact.url);
+  let href = safeUrl(contact.link_url || '');
+  if (!href && contact.phone) href = safeUrl(`tel:${contact.phone}`);
+  if (!href && contact.email) href = safeUrl(`mailto:${contact.email}`);
+  if (!href && contact.url) href = safeUrl(contact.url);
+  if (!href) return escapeHtml(display);
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a>`;
+}
+
+function previewBarHtml(message, buttonText, buttonUrl) {
+  const safeButtonUrl = safeUrl(buttonUrl);
+  const button = buttonText && safeButtonUrl
+    ? `<a class="pw-bar-btn" href="${escapeHtml(safeButtonUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(buttonText)}</a>`
+    : '';
+  return `<div class="pw-bar-inner"><span class="pw-bar-text">${escapeHtml(message)}</span>${button}</div>`;
+}
+
+function renderPreviewBar(selector, type, message, buttonText = '', buttonUrl = '', domainBar = false) {
+  const bar = $(selector);
+  const text = normalizeText(message);
+  if (!bar || !text) {
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+  bar.className = `pw-bar ${type || 'info'}${domainBar ? ' pw-bar-domain' : ''}`;
+  bar.innerHTML = previewBarHtml(text, normalizeText(buttonText), buttonUrl);
+  bar.style.display = 'block';
+}
+
+function renderPreviewExpire(info) {
+  if (!info?.expire) {
+    renderPreviewBar('#previewExpire', 'info', '');
+    return;
+  }
+
+  const days = daysUntil(info.expire);
+  if (days === null) {
+    renderPreviewBar('#previewExpire', 'info', '');
+    return;
+  }
+
+  const note = info.hosting_note ? ` (${info.hosting_note})` : '';
+  let type = 'success';
+  let message = `Dịch vụ còn hạn đến ${toDisplayDate(info.expire)} (${days} ngày)${note}`;
+  if (days < 0) {
+    type = 'error';
+    message = `Hosting đã hết hạn ${Math.abs(days)} ngày trước${note}. Liên hệ PDL ngay!`;
+  } else if (days <= 14) {
+    type = 'error';
+    message = `Hosting hết hạn sau ${days} ngày - ${toDisplayDate(info.expire)}${note}`;
+  } else if (days <= 30) {
+    type = 'warning';
+    message = `Hosting sắp hết hạn sau ${days} ngày - ${toDisplayDate(info.expire)}${note}`;
+  }
+  renderPreviewBar('#previewExpire', type, message);
+}
+
+function renderWidgetPreview() {
+  const brand = state.brand || {};
+  const previewDomain = 'pdl.vn';
+  const websiteUrl = safeUrl(brand.website || 'https://pdl.vn') || 'https://pdl.vn';
+  const websiteLabel = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const updated = brand.updated_at ? ` &nbsp;·&nbsp; Cập nhật: ${toDisplayDate(brand.updated_at)}` : '';
+  const logo = normalizeText(brand.logo);
+  const site = brand.domains?.[previewDomain] || brand.domains?.[`www.${previewDomain}`] || null;
+  const contacts = Array.isArray(brand.contacts) ? brand.contacts : [];
+
+  $('#previewDomain').textContent = previewDomain;
+  $('#previewHead').innerHTML = `
+    <div class="pw-logo">${logo ? `<img src="${escapeHtml(logo)}" alt="PDL">` : '<span>PDL</span>'}</div>
+    <div>
+      <p class="pw-htitle">${escapeHtml(brand.company || 'Công Ty TNHH Giải Pháp PDL')}</p>
+      <p class="pw-hsub">${escapeHtml(brand.address || 'pdl.vn')}${updated}</p>
+    </div>
+  `;
+
+  if (brand.notify?.active) {
+    renderPreviewBar('#previewNotify', brand.notify.type || 'info', brand.notify.message, brand.notify.button_text, brand.notify.button_url);
+  } else {
+    renderPreviewBar('#previewNotify', 'info', '');
+  }
+
+  if (site?.notify?.active) {
+    renderPreviewBar('#previewSite', site.notify.type || 'info', site.notify.message, site.notify.button_text, site.notify.button_url, true);
+  } else {
+    renderPreviewBar('#previewSite', 'info', '');
+  }
+  renderPreviewExpire(site);
+
+  $('#previewGrid').innerHTML = contacts.length ? contacts.map((contact) => `
+    <div class="pw-card">
+      <div class="pw-icon">${previewIcon(contact)}</div>
+      <div>
+        <span class="pw-cl">${escapeHtml(contact.label || 'Liên hệ')}</span>
+        <p class="pw-cv">${previewContactLink(contact)}</p>
+      </div>
+    </div>
+  `).join('') : '<p class="pw-error">Không tải được dữ liệu. Liên hệ: <a href="tel:0901110008">0901 11 0008</a></p>';
+  $('#previewCopy').innerHTML = `&copy; ${new Date().getFullYear()} ${escapeHtml(brand.company || 'Công Ty TNHH Giải Pháp PDL')}`;
+  $('#previewLink').href = websiteUrl;
+  $('#previewLink').textContent = `${websiteLabel} →`;
+}
+
 function notifyEditorHtml(scope, notify = blankNotify()) {
   return `
     <h3>${scope === 'global' ? 'Thông báo chung' : 'Thông báo riêng'}</h3>
@@ -482,18 +613,12 @@ function renderOverview() {
     .filter((row) => row.days !== null && row.days <= 30)
     .sort((a, b) => a.days - b.days);
   const schedule = buildSchedule(12);
-  const logo = state.brand?.logo || '';
   const peakMonth = schedule.months.reduce((best, month) => (month.items.length > best.items.length ? month : best), schedule.months[0] || { date: new Date(), items: [] });
   const notifyText = state.brand?.notify?.active
     ? (state.brand.notify.message || state.brand.notify.button_text || 'Đang bật')
     : 'Đang tắt';
 
-  $('#brandLogoPreview').src = logo || 'https://pdl.vn/wp-content/uploads/2025/12/logopdlphudigital.png';
-  $('#brandLogoPreview').hidden = false;
-  $('#heroCompany').textContent = state.brand?.company || 'PDL';
-  $('#heroAddress').textContent = state.brand?.address || 'Chưa có địa chỉ thương hiệu';
-  $('#heroUpdated').textContent = `Cập nhật ${toDisplayDate(state.brand?.updated_at) || '--/--/----'}`;
-  $('#heroWebsite').textContent = (state.brand?.website || 'https://pdl.vn').replace(/^https?:\/\//, '');
+  renderWidgetPreview();
   $('#heroFile').textContent = state.brandFile.split('/').pop() || 'brand.json';
   $('#heroNotify').textContent = notifyText;
   $('#heroPeakMonth').textContent = peakMonth?.items?.length ? monthShortLabel(peakMonth.date) : 'Chưa có';
