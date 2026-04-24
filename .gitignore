@@ -1,1 +1,6 @@
 .DS_Store
+ql-hosting/.DS_Store
+ql-hosting/config.php
+ql-hosting/data/settings.json
+ql-hosting/data/backups/
+ql-hosting/data/*.log

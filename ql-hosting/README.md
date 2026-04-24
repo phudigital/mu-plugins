@@ -1,6 +1,14 @@
 # QL Hosting PDL
 
-Ứng dụng PHP thuần để quản lý `brand.json` qua giao diện mobile-first tại `/ql-hosting`.
+Ứng dụng PHP thuần để quản lý `brand.json`, lịch gia hạn domain/hosting và nhắc hạn Telegram tại `/ql-hosting`.
+
+## Tính năng
+
+- Cập nhật thông tin thương hiệu, liên hệ CSKH và domain trong `brand.json`.
+- Preview widget WordPress giống giao diện đang hiển thị trong dashboard khách hàng.
+- Nhập ngày theo định dạng `dd/mm/yyyy`, lưu nội bộ dạng `yyyy-mm-dd`.
+- Nhắc hạn qua Telegram bằng cron hằng ngày.
+- Lưu dữ liệu bằng JSON, không cần database.
 
 ## Cấu trúc
 
@@ -10,54 +18,75 @@ ql-hosting/
 ├── api.php
 ├── cron.php
 ├── lib.php
+├── brand.json
 ├── config.example.php
 ├── assets/
+│   ├── app.css
+│   ├── app.js
+│   └── pdl-logo.png
 └── data/
+    └── .htaccess
 ```
 
-Mặc định app đọc và ghi file:
+## Bảo mật
 
-```text
-ql-hosting/brand.json
-```
+Các file nhạy cảm không nên commit lên GitHub:
 
-Nếu bạn vẫn muốn dùng file ở chỗ khác, copy `config.example.php` thành `config.php` rồi sửa `brand_file` thành đường dẫn tuyệt đối.
+- `ql-hosting/config.php`
+- `ql-hosting/data/settings.json`
+- `ql-hosting/data/backups/`
+
+Repo đã ignore các file trên. Trên server thật, `settings.json` sẽ chứa password hash, Telegram token, Chat ID, cron key và lịch gửi gần nhất.
+
+Nếu deploy lần đầu chưa có `settings.json`, app sẽ chuyển sang màn hình tạo tài khoản quản trị đầu tiên.
 
 ## Deploy
 
-Upload nguyên thư mục `ql-hosting` vào public root của `app.pdl.vn`, ví dụ:
+Upload thư mục `ql-hosting` vào public root của `app.pdl.vn`:
 
 ```text
 public_html/
 └── ql-hosting/
-    ├── brand.json
-    └── ...
 ```
 
-Sau đó mở:
+Mở trang quản trị:
 
 ```text
 https://app.pdl.vn/ql-hosting/
 ```
 
-Tài khoản mặc định:
+File public cho mu-plugin đọc:
 
-- tài khoản: `phudigital`
-- mật khẩu: `PhuDigital68^*`
+```text
+https://app.pdl.vn/ql-hosting/brand.json
+```
 
-App vẫn đọc `data/settings.json` nếu file này có mặt, nhưng từ bản này trở đi ngay cả khi bạn quên upload file đó thì vẫn đăng nhập được bằng tài khoản mặc định ở trên. Không lưu mật khẩu dạng chữ trong app, chỉ lưu hash.
+## Cấu hình Nginx
 
-## Telegram
+`brand.json` cần public để mu-plugin đọc được. Các file còn lại trong `data/` cần chặn truy cập:
 
-Trong tab Telegram:
+```nginx
+location = /ql-hosting/brand.json {
+    add_header Access-Control-Allow-Origin "*" always;
+    try_files $uri =404;
+}
 
-- bật thông báo
-- nhập Bot token
-- nhập Chat ID
-- bấm gửi thử
-- bấm lưu
+location ^~ /ql-hosting/data/ {
+    deny all;
+}
+```
 
-App sẽ hiển thị sẵn URL cron có key riêng. Tạo cron hằng ngày trong FastPanel gọi URL đó để tự gửi nhắc hạn.
+## Cron Telegram
+
+Sau khi cấu hình Telegram trong app, tab Bot sẽ hiển thị URL cron có key riêng. Tạo cron hằng ngày trong FastPanel gọi URL đó bằng `curl`.
+
+Ví dụ format lệnh:
+
+```bash
+curl -fsS 'https://app.pdl.vn/ql-hosting/cron.php?key=YOUR_PRIVATE_CRON_KEY' >/dev/null 2>&1
+```
+
+Không đưa cron key thật vào README, issue, commit message hoặc ảnh chụp public.
 
 ## Quyền ghi file
 
@@ -67,4 +96,4 @@ PHP cần ghi được:
 - `ql-hosting/data/settings.json`
 - `ql-hosting/data/backups/`
 
-Mỗi lần lưu `brand.json`, app tự tạo một bản backup trong `data/backups`.
+Mỗi lần lưu `brand.json`, app tự tạo một bản backup trong `data/backups/`.

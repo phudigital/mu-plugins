@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 const QLH_DEFAULT_SETTINGS = [
     'username' => 'phudigital',
-    'password_hash' => '$2y$10$9u65wb9cjlE4fclgNWjuieCGng9T26mU1o70UIq/8Vpm.R.MAIom6',
+    'password_hash' => '',
     'telegram' => [
         'enabled' => false,
         'bot_token' => '',

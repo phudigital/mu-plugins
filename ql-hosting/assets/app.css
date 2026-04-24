@@ -200,6 +200,30 @@ h3 {
   font-size: 24px;
 }
 
+.brand-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-heading .muted {
+  margin-top: 3px;
+}
+
+.app-logo {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: #fff;
+  object-fit: contain;
+  box-shadow: 0 12px 28px rgba(39, 50, 83, 0.16);
+}
+
+.auth-panel .brand-heading {
+  align-items: flex-start;
+}
+
 #sessionLabel {
   margin: 6px 0 0;
   font-size: 13px;
@@ -662,8 +686,9 @@ body.is-dirty #saveBtn {
 .signal-strip {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  height: 100%;
   min-width: 0;
 }
 
@@ -671,7 +696,7 @@ body.is-dirty #saveBtn {
   display: grid;
   align-content: space-between;
   gap: 10px;
-  min-height: 82px;
+  min-height: 0;
   padding: 14px 16px;
   background: #fff;
   box-shadow: 0 10px 24px rgba(39, 50, 83, 0.06);
@@ -1011,6 +1036,12 @@ body.is-dirty #saveBtn {
 
   .signal-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: none;
+    height: auto;
+  }
+
+  .signal-card {
+    min-height: 82px;
   }
 }
 
@@ -1022,6 +1053,16 @@ body.is-dirty #saveBtn {
 
   .topbar {
     align-items: flex-start;
+  }
+
+  .brand-heading {
+    align-items: flex-start;
+  }
+
+  .app-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
   }
 
   .top-actions {

@@ -5,23 +5,35 @@ require __DIR__ . '/lib.php';
 $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 $cssVersion = (string) @filemtime(__DIR__ . '/assets/app.css');
 $jsVersion = (string) @filemtime(__DIR__ . '/assets/app.js');
+$logoVersion = (string) @filemtime(__DIR__ . '/assets/pdl-logo.png');
 ?>
 <!doctype html>
 <html lang="vi">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#f6f7f9">
+    <meta name="theme-color" content="#273253">
+    <meta name="description" content="QL Hosting PDL - quản lý brand.json, lịch gia hạn domain hosting và nhắc hạn Telegram cho hệ thống PDL.">
+    <meta name="robots" content="noindex,nofollow">
+    <meta property="og:title" content="QL Hosting PDL">
+    <meta property="og:description" content="Công cụ nội bộ để cập nhật brand.json và theo dõi lịch gia hạn dịch vụ PDL.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="<?= htmlspecialchars($basePath) ?>/assets/pdl-logo.png?v=<?= htmlspecialchars($logoVersion) ?>">
     <title>QL Hosting PDL</title>
+    <link rel="icon" href="<?= htmlspecialchars($basePath) ?>/assets/pdl-logo.png?v=<?= htmlspecialchars($logoVersion) ?>" type="image/png">
+    <link rel="apple-touch-icon" href="<?= htmlspecialchars($basePath) ?>/assets/pdl-logo.png?v=<?= htmlspecialchars($logoVersion) ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/app.css?v=<?= htmlspecialchars($cssVersion) ?>">
 </head>
 <body>
     <div id="auth" class="auth-shell">
         <section class="auth-panel">
-            <div>
-                <p class="eyebrow">PDL</p>
-                <h1>QL Hosting</h1>
-                <p class="muted" id="authCopy">Đăng nhập để cập nhật brand.json và lịch nhắc Telegram.</p>
+            <div class="brand-heading">
+                <img class="app-logo" src="<?= htmlspecialchars($basePath) ?>/assets/pdl-logo.png?v=<?= htmlspecialchars($logoVersion) ?>" alt="PDL">
+                <div>
+                    <p class="eyebrow">PDL</p>
+                    <h1>QL Hosting</h1>
+                    <p class="muted" id="authCopy">Đăng nhập để cập nhật brand.json và lịch nhắc Telegram.</p>
+                </div>
             </div>
             <form id="authForm" class="stack">
                 <label>
@@ -39,10 +51,13 @@ $jsVersion = (string) @filemtime(__DIR__ . '/assets/app.js');
 
     <main id="app" class="app-shell" hidden>
         <header class="topbar">
-            <div>
-                <p class="eyebrow">PDL</p>
-                <h1>QL Hosting</h1>
-                <p id="sessionLabel" class="muted">Quản trị brand.json</p>
+            <div class="brand-heading">
+                <img class="app-logo" src="<?= htmlspecialchars($basePath) ?>/assets/pdl-logo.png?v=<?= htmlspecialchars($logoVersion) ?>" alt="PDL">
+                <div>
+                    <p class="eyebrow">PDL</p>
+                    <h1>QL Hosting</h1>
+                    <p id="sessionLabel" class="muted">Quản trị brand.json</p>
+                </div>
             </div>
             <div class="top-actions">
                 <button id="saveBtn" class="primary icon-text" type="button" title="Lưu">
