@@ -6,6 +6,8 @@ const state = {
   brand: null,
   settings: null,
   brandFile: '',
+  dirty: false,
+  jsonDirty: false,
 };
 
 function api(action, body = undefined) {
@@ -42,6 +44,25 @@ function setAuthBusy(busy, label = 'Tiếp tục') {
   const button = $('#authForm button[type="submit"]');
   button.disabled = busy;
   button.textContent = busy ? 'Đang đăng nhập...' : label;
+}
+
+function saveButtonLabel(text) {
+  const label = $('#saveBtn span:last-child');
+  if (label) label.textContent = text;
+}
+
+function markDirty() {
+  if (state.dirty) return;
+  state.dirty = true;
+  document.body.classList.add('is-dirty');
+  saveButtonLabel('Lưu *');
+}
+
+function markSaved() {
+  state.dirty = false;
+  state.jsonDirty = false;
+  document.body.classList.remove('is-dirty');
+  saveButtonLabel('Lưu');
 }
 
 function toast(message, error = false) {
@@ -210,12 +231,14 @@ function bindNotifyEditor(root, getNotify) {
       const [, key] = input.dataset.nf.split(':');
       const notify = getNotify();
       notify[key] = input.type === 'checkbox' ? input.checked : input.value;
+      markDirty();
       syncJson();
     });
     input.addEventListener('change', () => {
       const [, key] = input.dataset.nf.split(':');
       const notify = getNotify();
       notify[key] = input.type === 'checkbox' ? input.checked : input.value;
+      markDirty();
       syncJson();
       renderOverview();
     });
@@ -238,6 +261,7 @@ function renderBrand() {
         input.setCustomValidity('');
         state.brand[key] = normalized;
         input.value = toDisplayDate(normalized);
+        markDirty();
         syncJson();
       };
       return;
@@ -246,6 +270,7 @@ function renderBrand() {
     input.value = state.brand[key] || '';
     input.oninput = () => {
       state.brand[key] = input.value;
+      markDirty();
       syncJson();
     };
   });
@@ -292,6 +317,7 @@ function renderDomains() {
     $('[data-remove-domain]', row).addEventListener('click', () => {
       if (!confirm(`Xóa ${domain}?`)) return;
       delete state.brand.domains[domain];
+      markDirty();
       renderAll();
       syncJson();
     });
@@ -304,6 +330,7 @@ function renderDomains() {
           if (!next || next === domain) return;
           state.brand.domains[next] = state.brand.domains[domain] || blankDomain();
           delete state.brand.domains[domain];
+          markDirty();
           renderAll();
         } else if (field === 'expire') {
           const normalized = toStorageDate(input.value);
@@ -315,11 +342,13 @@ function renderDomains() {
           input.setCustomValidity('');
           state.brand.domains[domain][field] = normalized;
           input.value = toDisplayDate(normalized);
+          markDirty();
           renderOverview();
           renderCalendar();
           syncJson();
         } else {
           state.brand.domains[domain][field] = input.value;
+          markDirty();
           renderOverview();
           renderCalendar();
           syncJson();
@@ -328,6 +357,7 @@ function renderDomains() {
       input.addEventListener('input', () => {
         const field = input.dataset.domainField;
         if (field !== 'name' && field !== 'expire') state.brand.domains[domain][field] = input.value;
+        if (field !== 'name') markDirty();
         syncJson();
       });
     });
@@ -361,11 +391,13 @@ function renderContacts() {
         const field = input.dataset.contactField;
         const contact = contacts[index];
         contact[field] = input.value;
+        markDirty();
         syncJson();
       });
     });
     $('[data-remove-contact]', row).addEventListener('click', () => {
       contacts.splice(index, 1);
+      markDirty();
       renderContacts();
       syncJson();
     });
@@ -497,6 +529,7 @@ function renderAll() {
 function parseJsonEditor() {
   try {
     state.brand = JSON.parse($('#jsonEditor').value);
+    state.jsonDirty = false;
     renderAll();
     toast('Đã cập nhật dữ liệu từ JSON editor.');
     return true;
@@ -515,6 +548,7 @@ async function loadData() {
     $('#sessionLabel').textContent = `Đăng nhập: ${data.settings.username || 'phudigital'} · File: ${data.brand_file.split('/').pop()}`;
     showApp();
     renderAll();
+    markSaved();
     if (!data.brand_writable) toast('brand.json có thể chưa ghi được. Kiểm tra permission trên hosting.', true);
   } catch (error) {
     if (error.status === 401 || error.payload?.setup_required) {
@@ -569,13 +603,19 @@ function wireActions() {
   });
 
   $('#saveBtn').addEventListener('click', async () => {
-    if (!parseJsonEditor()) return;
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    if (state.jsonDirty || $('.tab.active')?.dataset.tab === 'json') {
+      if (!parseJsonEditor()) return;
+    }
     $('#saveBtn').disabled = true;
     try {
       const result = await api('save-brand', { brand: state.brand });
       state.brand = result.brand;
       await saveSettings();
       renderAll();
+      markSaved();
       toast('Đã lưu brand.json và cài đặt.');
     } catch (error) {
       toast(error.message, true);
@@ -594,12 +634,25 @@ function wireActions() {
     panel.hidden = expanded;
   });
   $('#domainSearch').addEventListener('input', renderDomains);
-  $('#formatJsonBtn').addEventListener('click', parseJsonEditor);
+  $('#jsonEditor').addEventListener('input', () => {
+    state.jsonDirty = true;
+    markDirty();
+  });
+  ['tgEnabled', 'tgToken', 'tgChatId', 'reminderDays', 'repeatAfter', 'notifyOverdue', 'adminUsername', 'newPassword'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', markDirty);
+    el.addEventListener('change', markDirty);
+  });
+  $('#formatJsonBtn').addEventListener('click', () => {
+    if (parseJsonEditor()) markDirty();
+  });
 
   $('#addDomainBtn').addEventListener('click', () => {
     const domain = prompt('Nhập domain mới');
     if (!domain) return;
     state.brand.domains[domain.trim().toLowerCase()] = blankDomain();
+    markDirty();
     renderAll();
     syncJson();
   });
@@ -607,6 +660,7 @@ function wireActions() {
   $('#addContactBtn').addEventListener('click', () => {
     state.brand.contacts = state.brand.contacts || [];
     state.brand.contacts.push({ label: '', phone: '', display: '', link_url: '' });
+    markDirty();
     renderContacts();
     syncJson();
   });
@@ -630,6 +684,19 @@ function wireActions() {
     } catch (error) {
       toast(error.message, true);
     }
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      $('#saveBtn').click();
+    }
+  });
+
+  window.addEventListener('beforeunload', (event) => {
+    if (!state.dirty) return;
+    event.preventDefault();
+    event.returnValue = '';
   });
 }
 

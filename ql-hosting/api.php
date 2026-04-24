@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
 session_start();
 require __DIR__ . '/lib.php';
 
@@ -33,6 +40,7 @@ try {
         $settings['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
         $settings['cron_key'] = bin2hex(random_bytes(24));
         qlh_save_settings($settings);
+        session_regenerate_id(true);
         $_SESSION['qlh_auth'] = true;
         qlh_json_response(['ok' => true, 'message' => 'Đã tạo mật khẩu quản trị.']);
     }
@@ -44,12 +52,24 @@ try {
         if (!hash_equals(qlh_normalize_username((string) ($settings['username'] ?? 'phudigital')), $username) || !password_verify($password, (string) ($settings['password_hash'] ?? ''))) {
             qlh_json_response(['ok' => false, 'message' => 'Tài khoản hoặc mật khẩu không đúng.'], 401);
         }
+        session_regenerate_id(true);
         $_SESSION['qlh_auth'] = true;
         qlh_json_response(['ok' => true, 'message' => 'Đã đăng nhập.']);
     }
 
     if ($action === 'logout') {
         $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', [
+                'expires' => time() - 42000,
+                'path' => $params['path'],
+                'domain' => $params['domain'] ?? '',
+                'secure' => (bool) $params['secure'],
+                'httponly' => (bool) $params['httponly'],
+                'samesite' => $params['samesite'] ?? 'Strict',
+            ]);
+        }
         session_destroy();
         qlh_json_response(['ok' => true, 'message' => 'Đã đăng xuất.']);
     }
