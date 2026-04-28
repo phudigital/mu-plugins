@@ -34,6 +34,9 @@ function pdl_admin_utilities_settings() {
                 'post_status'    => 'draft',
                 'title_suffix'   => ' - Copy',
             ],
+            'revisions' => [
+                'max_revisions' => 3,
+            ],
             'upload_limits' => [
                 'images_only'    => true,
                 'max_image_size' => 2 * 1024 * 1024,
@@ -258,6 +261,17 @@ function pdl_admin_utilities_add_duplicate_row_action( $actions, $post ) {
 }
 add_filter( 'post_row_actions', 'pdl_admin_utilities_add_duplicate_row_action', 10, 2 );
 add_filter( 'page_row_actions', 'pdl_admin_utilities_add_duplicate_row_action', 10, 2 );
+
+function pdl_admin_utilities_limit_revisions( $num, $post = null ) {
+    $max_revisions = (int) pdl_admin_utilities_setting( 'revisions', 'max_revisions', 3 );
+
+    if ( $max_revisions < 0 ) {
+        return $num;
+    }
+
+    return $max_revisions;
+}
+add_filter( 'wp_revisions_to_keep', 'pdl_admin_utilities_limit_revisions', 20, 2 );
 
 function pdl_admin_utilities_handle_duplicate_action() {
     $post_id = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0;

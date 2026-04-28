@@ -217,6 +217,12 @@ $actions = pdl_admin_utilities_add_duplicate_row_action( [], (object) [ 'ID' => 
 assert_same( [], $actions, 'Non-public post types should not get a duplicate row action.' );
 
 assert_same(
+    3,
+    pdl_admin_utilities_limit_revisions( 10, (object) [ 'post_type' => 'post' ] ),
+    'WordPress should keep only 3 revisions per post.'
+);
+
+assert_same(
     2 * 1024 * 1024,
     pdl_admin_utilities_upload_size_limit( 100 * 1024 * 1024 ),
     'Media uploader should advertise the 2MB limit before upload starts.'
