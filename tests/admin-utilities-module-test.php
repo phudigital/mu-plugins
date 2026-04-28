@@ -127,6 +127,7 @@ function esc_html__( $value ) { return $value; }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_url( $value ) { return $value; }
 function add_query_arg( $args, $url ) { return $url . '&' . http_build_query( $args ); }
+function size_format( $bytes ) { return ( $bytes / 1024 / 1024 ) . ' MB'; }
 
 require __DIR__ . '/../pdl-modules/admin-utilities.php';
 
@@ -189,5 +190,32 @@ assert_same( true, isset( $actions['pdl_duplicate_content'] ), 'Public post type
 
 $actions = pdl_admin_utilities_add_duplicate_row_action( [], (object) [ 'ID' => 10, 'post_type' => 'private_type' ] );
 assert_same( [], $actions, 'Non-public post types should not get a duplicate row action.' );
+
+$upload = pdl_admin_utilities_validate_image_upload(
+    [
+        'name' => 'photo.jpg',
+        'type' => 'image/jpeg',
+        'size' => 1024 * 1024,
+    ]
+);
+assert_same( null, $upload['error'] ?? null, 'Valid images under 2MB should be allowed.' );
+
+$upload = pdl_admin_utilities_validate_image_upload(
+    [
+        'name' => 'large.jpg',
+        'type' => 'image/jpeg',
+        'size' => ( 2 * 1024 * 1024 ) + 1,
+    ]
+);
+assert_same( 'PDL chỉ cho phép upload hình ảnh nhỏ hơn 2MB.', $upload['error'], 'Images over 2MB should be blocked.' );
+
+$upload = pdl_admin_utilities_validate_image_upload(
+    [
+        'name' => 'document.pdf',
+        'type' => 'application/pdf',
+        'size' => 500,
+    ]
+);
+assert_same( 'PDL chỉ cho phép upload file hình ảnh.', $upload['error'], 'Non-image uploads should be blocked.' );
 
 echo "admin-utilities-module-test OK\n";

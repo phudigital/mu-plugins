@@ -51,9 +51,9 @@ wp-content/mu-plugins/
 - `hide-login`: đổi URL đăng nhập mặc định sang `/dang-nhap/` và chặn truy cập trực tiếp `wp-login.php`/`wp-register.php`.
 - `admin-menu`: thêm trang **PDL Admin Menu** để user gốc cấu hình ẩn menu/submenu admin cho các tài khoản thường.
 - `hidden-plugins`: thêm trang **PDL Hidden Plugins** để super admin cấu hình plugin cần ẩn khỏi trang Plugins của tài khoản thường.
-- `admin-utilities`: dọn thanh quản trị theo cấu hình mặc định, ẩn notice quản trị, tắt các widget Dashboard đã chọn và thêm thao tác **Sao chép** cho post/page/public post type.
+- `admin-utilities`: dọn thanh quản trị theo cấu hình mặc định, ẩn notice quản trị, tắt các widget Dashboard đã chọn, thêm thao tác **Sao chép** cho post/page/public post type và giới hạn upload chỉ cho phép hình ảnh nhỏ hơn 2MB.
 
-Phiên bản hiện tại: `1.3.0`.
+Phiên bản hiện tại: `1.3.1`.
 
 ## Cách Triển Khai Khuyên Dùng
 

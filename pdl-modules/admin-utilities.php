@@ -33,6 +33,10 @@ function pdl_admin_utilities_settings() {
                 'post_status'    => 'draft',
                 'title_suffix'   => ' - Copy',
             ],
+            'upload_limits' => [
+                'images_only'    => true,
+                'max_image_size' => 2 * 1024 * 1024,
+            ],
         ]
     );
 }
@@ -252,3 +256,25 @@ function pdl_admin_utilities_handle_duplicate_action() {
     exit;
 }
 add_action( 'admin_action_pdl_duplicate_content', 'pdl_admin_utilities_handle_duplicate_action' );
+
+function pdl_admin_utilities_validate_image_upload( $file ) {
+    if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) ) {
+        return $file;
+    }
+
+    $mime_type = strtolower( (string) ( $file['type'] ?? '' ) );
+    if ( 0 !== strpos( $mime_type, 'image/' ) ) {
+        $file['error'] = 'PDL chỉ cho phép upload file hình ảnh.';
+        return $file;
+    }
+
+    $max_size = (int) pdl_admin_utilities_setting( 'upload_limits', 'max_image_size', 2 * 1024 * 1024 );
+    $size     = (int) ( $file['size'] ?? 0 );
+
+    if ( $max_size > 0 && $size >= $max_size ) {
+        $file['error'] = 'PDL chỉ cho phép upload hình ảnh nhỏ hơn 2MB.';
+    }
+
+    return $file;
+}
+add_filter( 'wp_handle_upload_prefilter', 'pdl_admin_utilities_validate_image_upload' );
