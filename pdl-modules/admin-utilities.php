@@ -288,6 +288,21 @@ function pdl_admin_utilities_handle_duplicate_action() {
 }
 add_action( 'admin_action_pdl_duplicate_content', 'pdl_admin_utilities_handle_duplicate_action' );
 
+function pdl_admin_utilities_upload_size_limit( $size ) {
+    if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) ) {
+        return $size;
+    }
+
+    $max_size = (int) pdl_admin_utilities_setting( 'upload_limits', 'max_image_size', 2 * 1024 * 1024 );
+
+    if ( $max_size <= 0 ) {
+        return $size;
+    }
+
+    return min( (int) $size, $max_size );
+}
+add_filter( 'upload_size_limit', 'pdl_admin_utilities_upload_size_limit', 999 );
+
 function pdl_admin_utilities_validate_image_upload( $file ) {
     if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) ) {
         return $file;
@@ -302,8 +317,8 @@ function pdl_admin_utilities_validate_image_upload( $file ) {
     $max_size = (int) pdl_admin_utilities_setting( 'upload_limits', 'max_image_size', 2 * 1024 * 1024 );
     $size     = (int) ( $file['size'] ?? 0 );
 
-    if ( $max_size > 0 && $size >= $max_size ) {
-        $file['error'] = 'PDL chỉ cho phép upload hình ảnh nhỏ hơn 2MB.';
+    if ( $max_size > 0 && $size > $max_size ) {
+        $file['error'] = 'Website được thiết kế để tối ưu trải nghiệm người dùng, chỉ cho phép upload ảnh tối đa 2Mb, vui lòng giảm dung lương ảnh trước khi upload.';
     }
 
     return $file;

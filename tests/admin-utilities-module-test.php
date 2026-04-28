@@ -215,6 +215,12 @@ assert_same( true, isset( $actions['pdl_duplicate_content'] ), 'Public post type
 $actions = pdl_admin_utilities_add_duplicate_row_action( [], (object) [ 'ID' => 10, 'post_type' => 'private_type' ] );
 assert_same( [], $actions, 'Non-public post types should not get a duplicate row action.' );
 
+assert_same(
+    2 * 1024 * 1024,
+    pdl_admin_utilities_upload_size_limit( 100 * 1024 * 1024 ),
+    'Media uploader should advertise the 2MB limit before upload starts.'
+);
+
 $upload = pdl_admin_utilities_validate_image_upload(
     [
         'name' => 'photo.jpg',
@@ -226,12 +232,21 @@ assert_same( null, $upload['error'] ?? null, 'Valid images under 2MB should be a
 
 $upload = pdl_admin_utilities_validate_image_upload(
     [
+        'name' => 'exact.jpg',
+        'type' => 'image/jpeg',
+        'size' => 2 * 1024 * 1024,
+    ]
+);
+assert_same( null, $upload['error'] ?? null, 'Images at exactly 2MB should be allowed.' );
+
+$upload = pdl_admin_utilities_validate_image_upload(
+    [
         'name' => 'large.jpg',
         'type' => 'image/jpeg',
         'size' => ( 2 * 1024 * 1024 ) + 1,
     ]
 );
-assert_same( 'PDL chỉ cho phép upload hình ảnh nhỏ hơn 2MB.', $upload['error'], 'Images over 2MB should be blocked.' );
+assert_same( 'Website được thiết kế để tối ưu trải nghiệm người dùng, chỉ cho phép upload ảnh tối đa 2Mb, vui lòng giảm dung lương ảnh trước khi upload.', $upload['error'], 'Images over 2MB should be blocked.' );
 
 $upload = pdl_admin_utilities_validate_image_upload(
     [
