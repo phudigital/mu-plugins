@@ -12,6 +12,7 @@ Repo hiện tại đang chứa:
 - `pdl-loader.php`
 - `pdl-modules/admin-menu.php`
 - `pdl-modules/brand-widget.php`
+- `pdl-modules/hidden-plugins.php`
 - `pdl-modules/hide-login.php`
 - `pdl-modules/login-branding.php`
 - `brand.json`
@@ -20,7 +21,7 @@ Repo hiện tại đang chứa:
 
 ## Mục Tiêu
 
-Deploy `mu-plugin` PDL vào tất cả website WordPress trên VPS FastPanel mà không đụng các website không phải WordPress.
+Deploy bộ `mu-plugin` PDL vào tất cả website WordPress trên VPS FastPanel mà không đụng các website không phải WordPress. Bộ này dùng để chuẩn hoá lớp quản trị khách hàng: hiển thị thông tin hỗ trợ PDL trong Dashboard, tuỳ biến trang đăng nhập, đổi đường dẫn đăng nhập, cấu hình ẩn menu admin và ẩn plugin khỏi tài khoản thường.
 
 Script deploy hiện tại chỉ nhận site nào có `wp-config.php`, nên:
 - WordPress: có xử lý
@@ -36,9 +37,20 @@ wp-content/mu-plugins/
 └── pdl-modules/
     ├── admin-menu.php
     ├── brand-widget.php
+    ├── hidden-plugins.php
     ├── hide-login.php
     └── login-branding.php
 ```
+
+## Chức Năng Chính
+
+- `brand-widget`: thêm widget “Thông tin & Hỗ trợ - PDL” trong Dashboard, đọc dữ liệu từ `https://app.pdl.vn/ql-hosting/brand.json`.
+- `login-branding`: tuỳ biến giao diện đăng nhập WordPress theo logo/site icon và thêm credit PDL.
+- `hide-login`: đổi URL đăng nhập mặc định sang `/dang-nhap/` và chặn truy cập trực tiếp `wp-login.php`/`wp-register.php`.
+- `admin-menu`: thêm trang **PDL Admin Menu** để user gốc cấu hình ẩn menu/submenu admin cho các tài khoản thường.
+- `hidden-plugins`: thêm trang **PDL Hidden Plugins** để super admin cấu hình plugin cần ẩn khỏi trang Plugins của tài khoản thường.
+
+Phiên bản hiện tại: `1.2.0`.
 
 ## Cách Triển Khai Khuyên Dùng
 
@@ -67,6 +79,7 @@ Upload các file sau lên VPS:
 └── pdl-modules/
     ├── admin-menu.php
     ├── brand-widget.php
+    ├── hidden-plugins.php
     ├── hide-login.php
     └── login-branding.php
 ```
@@ -213,6 +226,7 @@ ls -la /var/www/phudigital/data/www/pdl.vn/wp-content/mu-plugins/pdl-modules
 php -l /root/pdl-mu-source/pdl-loader.php
 php -l /root/pdl-mu-source/pdl-modules/admin-menu.php
 php -l /root/pdl-mu-source/pdl-modules/brand-widget.php
+php -l /root/pdl-mu-source/pdl-modules/hidden-plugins.php
 php -l /root/pdl-mu-source/pdl-modules/hide-login.php
 php -l /root/pdl-mu-source/pdl-modules/login-branding.php
 ```
@@ -394,4 +408,5 @@ python3 -m json.tool brand.json >/dev/null && echo OK
 php -l pdl-loader.php
 php -l pdl-modules/admin-menu.php
 php -l pdl-modules/brand-widget.php
+php -l pdl-modules/hidden-plugins.php
 ```
