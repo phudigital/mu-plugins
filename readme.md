@@ -10,6 +10,7 @@ Tài liệu này dùng để bạn đọc lại nhanh khi cần:
 
 Repo hiện tại đang chứa:
 - `pdl-loader.php`
+- `pdl-modules/admin-utilities.php`
 - `pdl-modules/admin-menu.php`
 - `pdl-modules/brand-widget.php`
 - `pdl-modules/hidden-plugins.php`
@@ -21,7 +22,7 @@ Repo hiện tại đang chứa:
 
 ## Mục Tiêu
 
-Deploy bộ `mu-plugin` PDL vào tất cả website WordPress trên VPS FastPanel mà không đụng các website không phải WordPress. Bộ này dùng để chuẩn hoá lớp quản trị khách hàng: hiển thị thông tin hỗ trợ PDL trong Dashboard, tuỳ biến trang đăng nhập, đổi đường dẫn đăng nhập, cấu hình ẩn menu admin và ẩn plugin khỏi tài khoản thường.
+Deploy bộ `mu-plugin` PDL vào tất cả website WordPress trên VPS FastPanel mà không đụng các website không phải WordPress. Bộ này dùng để chuẩn hoá lớp quản trị khách hàng: hiển thị thông tin hỗ trợ PDL trong Dashboard, tuỳ biến trang đăng nhập, đổi đường dẫn đăng nhập, dọn giao diện quản trị, cấu hình ẩn menu/plugin khỏi tài khoản thường và thêm chức năng sao chép nội dung.
 
 Script deploy hiện tại chỉ nhận site nào có `wp-config.php`, nên:
 - WordPress: có xử lý
@@ -35,6 +36,7 @@ Trên mỗi website WordPress, bộ plugin sẽ nằm ở:
 wp-content/mu-plugins/
 ├── pdl-loader.php
 └── pdl-modules/
+    ├── admin-utilities.php
     ├── admin-menu.php
     ├── brand-widget.php
     ├── hidden-plugins.php
@@ -49,8 +51,9 @@ wp-content/mu-plugins/
 - `hide-login`: đổi URL đăng nhập mặc định sang `/dang-nhap/` và chặn truy cập trực tiếp `wp-login.php`/`wp-register.php`.
 - `admin-menu`: thêm trang **PDL Admin Menu** để user gốc cấu hình ẩn menu/submenu admin cho các tài khoản thường.
 - `hidden-plugins`: thêm trang **PDL Hidden Plugins** để super admin cấu hình plugin cần ẩn khỏi trang Plugins của tài khoản thường.
+- `admin-utilities`: dọn thanh quản trị theo cấu hình mặc định, ẩn notice quản trị, tắt các widget Dashboard đã chọn và thêm thao tác **Sao chép** cho post/page/public post type.
 
-Phiên bản hiện tại: `1.2.0`.
+Phiên bản hiện tại: `1.3.0`.
 
 ## Cách Triển Khai Khuyên Dùng
 
@@ -77,6 +80,7 @@ Upload các file sau lên VPS:
 /root/pdl-mu-source/
 ├── pdl-loader.php
 └── pdl-modules/
+    ├── admin-utilities.php
     ├── admin-menu.php
     ├── brand-widget.php
     ├── hidden-plugins.php
@@ -224,6 +228,7 @@ ls -la /var/www/phudigital/data/www/pdl.vn/wp-content/mu-plugins/pdl-modules
 
 ```bash
 php -l /root/pdl-mu-source/pdl-loader.php
+php -l /root/pdl-mu-source/pdl-modules/admin-utilities.php
 php -l /root/pdl-mu-source/pdl-modules/admin-menu.php
 php -l /root/pdl-mu-source/pdl-modules/brand-widget.php
 php -l /root/pdl-mu-source/pdl-modules/hidden-plugins.php
@@ -406,6 +411,7 @@ python3 -m json.tool brand.json >/dev/null && echo OK
 
 ```bash
 php -l pdl-loader.php
+php -l pdl-modules/admin-utilities.php
 php -l pdl-modules/admin-menu.php
 php -l pdl-modules/brand-widget.php
 php -l pdl-modules/hidden-plugins.php
