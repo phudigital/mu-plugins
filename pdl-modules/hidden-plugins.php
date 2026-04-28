@@ -113,6 +113,28 @@ function pdl_hidden_plugins_filter_all_plugins( $plugins ) {
 }
 add_filter( 'all_plugins', 'pdl_hidden_plugins_filter_all_plugins', 999 );
 
+function pdl_hidden_plugins_filter_plugin_updates( $transient ) {
+    if ( pdl_hidden_plugins_is_super_admin() || ! is_object( $transient ) ) {
+        return $transient;
+    }
+
+    foreach ( [ 'response', 'no_update' ] as $property ) {
+        if ( empty( $transient->{$property} ) || ! is_array( $transient->{$property} ) ) {
+            continue;
+        }
+
+        foreach ( pdl_hidden_plugins_list() as $plugin_file ) {
+            if ( isset( $transient->{$property}[ $plugin_file ] ) ) {
+                unset( $transient->{$property}[ $plugin_file ] );
+            }
+        }
+    }
+
+    return $transient;
+}
+add_filter( 'site_transient_update_plugins', 'pdl_hidden_plugins_filter_plugin_updates', 999 );
+add_filter( 'transient_update_plugins', 'pdl_hidden_plugins_filter_plugin_updates', 999 );
+
 function pdl_hidden_plugins_get_installed_plugins() {
     if ( ! function_exists( 'get_plugins' ) ) {
         $plugin_file = ABSPATH . 'wp-admin/includes/plugin.php';

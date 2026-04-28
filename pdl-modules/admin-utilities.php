@@ -16,7 +16,8 @@ function pdl_admin_utilities_settings() {
                 'remove_help_tabs'   => true,
             ],
             'admin_notices' => [
-                'hide' => true,
+                'hide'                    => true,
+                'super_admin_only_updates' => true,
             ],
             'dashboard_widgets' => [
                 'remove_welcome_panel' => true,
@@ -47,6 +48,26 @@ function pdl_admin_utilities_setting( $group, $key, $default = false ) {
     return $settings[ $group ][ $key ] ?? $default;
 }
 
+function pdl_admin_utilities_is_super_admin() {
+    if ( function_exists( 'pdl_hidden_plugins_is_super_admin' ) ) {
+        return pdl_hidden_plugins_is_super_admin();
+    }
+
+    if ( function_exists( 'is_user_logged_in' ) && ! is_user_logged_in() ) {
+        return false;
+    }
+
+    if ( function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'is_super_admin' ) ) {
+        return is_super_admin();
+    }
+
+    return function_exists( 'current_user_can' ) && current_user_can( 'manage_options' );
+}
+
+function pdl_admin_utilities_updates_super_admin_only() {
+    return (bool) pdl_admin_utilities_setting( 'admin_notices', 'super_admin_only_updates', true );
+}
+
 function pdl_admin_utilities_cleanup_admin_bar( $wp_admin_bar ) {
     $map = [
         'remove_wp_logo'     => 'wp-logo',
@@ -61,6 +82,10 @@ function pdl_admin_utilities_cleanup_admin_bar( $wp_admin_bar ) {
         if ( pdl_admin_utilities_setting( 'admin_bar', $setting ) ) {
             $wp_admin_bar->remove_node( $node_id );
         }
+    }
+
+    if ( pdl_admin_utilities_updates_super_admin_only() && ! pdl_admin_utilities_is_super_admin() ) {
+        $wp_admin_bar->remove_node( 'updates' );
     }
 }
 add_action( 'admin_bar_menu', 'pdl_admin_utilities_cleanup_admin_bar', 999 );
@@ -94,6 +119,10 @@ function pdl_admin_utilities_hide_admin_notices_styles() {
     if ( ! pdl_admin_utilities_setting( 'admin_notices', 'hide' ) ) {
         return;
     }
+
+    if ( pdl_admin_utilities_updates_super_admin_only() && pdl_admin_utilities_is_super_admin() ) {
+        return;
+    }
     ?>
     <style>
         body.wp-admin .notice,
@@ -103,7 +132,9 @@ function pdl_admin_utilities_hide_admin_notices_styles() {
         body.wp-admin .notice.notice-warning,
         body.wp-admin .notice.notice-error,
         body.wp-admin .notice.notice-info,
-        body.wp-admin .notice.notice-success {
+        body.wp-admin .notice.notice-success,
+        body.wp-admin #adminmenu .update-plugins,
+        body.wp-admin #wp-admin-bar-updates {
             display: none !important;
         }
     </style>

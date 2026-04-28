@@ -23,6 +23,7 @@ $posts = [
     10 => null,
 ];
 $inserted_post = null;
+$is_pdl_super_admin = false;
 
 function add_action( $hook, $callback, $priority = 10 ) {
     $GLOBALS['actions'][] = [ $hook, $callback, $priority ];
@@ -128,6 +129,7 @@ function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOT
 function esc_url( $value ) { return $value; }
 function add_query_arg( $args, $url ) { return $url . '&' . http_build_query( $args ); }
 function size_format( $bytes ) { return ( $bytes / 1024 / 1024 ) . ' MB'; }
+function pdl_hidden_plugins_is_super_admin() { return $GLOBALS['is_pdl_super_admin']; }
 
 require __DIR__ . '/../pdl-modules/admin-utilities.php';
 
@@ -150,7 +152,29 @@ class Pdl_Test_Admin_Bar {
 
 $bar = new Pdl_Test_Admin_Bar();
 pdl_admin_utilities_cleanup_admin_bar( $bar );
-assert_same( [ 'wp-logo', 'new-content' ], $bar->removed, 'Only checked admin bar nodes should be removed.' );
+assert_same( true, in_array( 'updates', $bar->removed, true ), 'Regular admins should not see admin bar update notifications.' );
+assert_same( true, in_array( 'wp-logo', $bar->removed, true ), 'Regular admins should still get configured admin bar cleanup.' );
+assert_same( true, in_array( 'new-content', $bar->removed, true ), 'Regular admins should still get configured admin bar cleanup.' );
+
+ob_start();
+pdl_admin_utilities_hide_admin_notices_styles();
+$notice_styles = ob_get_clean();
+assert_same(
+    true,
+    false !== strpos( $notice_styles, '.update-nag' ) && false !== strpos( $notice_styles, '#adminmenu .update-plugins' ),
+    'Regular admins should get CSS that hides notices and update badges.'
+);
+
+$GLOBALS['is_pdl_super_admin'] = true;
+$bar = new Pdl_Test_Admin_Bar();
+pdl_admin_utilities_cleanup_admin_bar( $bar );
+assert_same( [ 'wp-logo', 'new-content' ], $bar->removed, 'Super admins should still see admin bar update notifications.' );
+
+ob_start();
+pdl_admin_utilities_hide_admin_notices_styles();
+$notice_styles = ob_get_clean();
+assert_same( '', trim( $notice_styles ), 'Super admins should see admin notices and update badges.' );
+$GLOBALS['is_pdl_super_admin'] = false;
 
 pdl_admin_utilities_remove_dashboard_widgets();
 assert_same(

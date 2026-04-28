@@ -120,4 +120,37 @@ assert_same(
     'Multisite super admin should be allowed to configure hidden plugins.'
 );
 
+$GLOBALS['is_multisite'] = false;
+$GLOBALS['super_admin'] = false;
+$GLOBALS['current_user_id'] = 2;
+$GLOBALS['options'][ PDL_HIDDEN_PLUGINS_OPTION ] = [ 'woocommerce/woocommerce.php' ];
+$updates = (object) [
+    'response' => [
+        'woocommerce/woocommerce.php' => (object) [ 'new_version' => '9.0.0' ],
+        'akismet/akismet.php' => (object) [ 'new_version' => '6.0.0' ],
+    ],
+    'no_update' => [
+        'woocommerce/woocommerce.php' => (object) [ 'new_version' => '8.0.0' ],
+        'hello.php' => (object) [ 'new_version' => '1.7.2' ],
+    ],
+];
+$filtered_updates = pdl_hidden_plugins_filter_plugin_updates( $updates );
+assert_same(
+    [ 'akismet/akismet.php' ],
+    array_keys( $filtered_updates->response ),
+    'Regular users should not see update-core rows for hidden plugins.'
+);
+assert_same(
+    [ 'hello.php' ],
+    array_keys( $filtered_updates->no_update ),
+    'Regular users should not see no-update rows for hidden plugins.'
+);
+
+$GLOBALS['current_user_id'] = 1;
+assert_same(
+    $updates,
+    pdl_hidden_plugins_filter_plugin_updates( $updates ),
+    'Root single-site admin should see plugin update data for hidden plugins.'
+);
+
 echo "hidden-plugins-module-test OK\n";
