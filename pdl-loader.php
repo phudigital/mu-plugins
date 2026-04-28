@@ -22,6 +22,7 @@ $pdl_modules = [
     'login-branding' => true,   // Tuỳ biến giao diện đăng nhập
     'hide-login'     => true,   // Đổi đường dẫn đăng nhập sang /dang-nhap/
     'admin-menu'     => true,    // Ẩn menu admin không cần thiết
+    'hidden-plugins' => true,    // Ẩn plugin khỏi danh sách Plugins
     'gclid-logger'   => false,  // Log IP + GCLID Google Ads
     'click-fraud'    => false,  // Chặn click fraud
     'image-compress' => false,  // Tự nén ảnh khi upload
