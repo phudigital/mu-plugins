@@ -303,6 +303,82 @@ function pdl_admin_utilities_upload_size_limit( $size ) {
 }
 add_filter( 'upload_size_limit', 'pdl_admin_utilities_upload_size_limit', 999 );
 
+function pdl_admin_utilities_max_image_size() {
+    return (int) pdl_admin_utilities_setting( 'upload_limits', 'max_image_size', 2 * 1024 * 1024 );
+}
+
+function pdl_admin_utilities_upload_limit_label() {
+    $max_size = pdl_admin_utilities_max_image_size();
+
+    if ( $max_size <= 0 ) {
+        return '';
+    }
+
+    $megabytes = $max_size / 1024 / 1024;
+    $label     = ( floor( $megabytes ) === $megabytes ) ? (string) (int) $megabytes : rtrim( rtrim( number_format( $megabytes, 2, '.', '' ), '0' ), '.' );
+
+    return $label . 'Mb';
+}
+
+function pdl_admin_utilities_upload_limit_message() {
+    $limit = pdl_admin_utilities_upload_limit_label();
+
+    if ( '' === $limit ) {
+        return 'Website được thiết kế để tối ưu trải nghiệm người dùng, vui lòng giảm dung lượng ảnh trước khi upload.';
+    }
+
+    return sprintf(
+        'Website được thiết kế để tối ưu trải nghiệm người dùng, chỉ cho phép upload ảnh tối đa %s, vui lòng giảm dung lượng ảnh trước khi upload.',
+        $limit
+    );
+}
+
+function pdl_admin_utilities_upload_size_error_message() {
+    $limit = pdl_admin_utilities_upload_limit_label();
+
+    if ( '' === $limit ) {
+        return 'Tệp vượt quá kích thước tải lên tối đa cho trang web này. Vui lòng giảm dung lượng ảnh trước khi upload.';
+    }
+
+    return sprintf(
+        'Tệp vượt quá kích thước tải lên tối đa cho trang web này (tối đa %s). Vui lòng giảm dung lượng ảnh trước khi upload.',
+        $limit
+    );
+}
+
+function pdl_admin_utilities_upload_limit_admin_script() {
+    if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) || pdl_admin_utilities_max_image_size() <= 0 ) {
+        return;
+    }
+
+    $message = pdl_admin_utilities_upload_size_error_message();
+    ?>
+    <script>
+    (function(){
+        var message = <?php echo wp_json_encode( $message ); ?>;
+        if (window.pluploadL10n) {
+            window.pluploadL10n.file_exceeds_size_limit = message;
+            window.pluploadL10n.file_exceeds_upload_limit = message;
+        }
+        if (window._wpPluploadSettings && window._wpPluploadSettings.defaults) {
+            window._wpPluploadSettings.defaults.multipart_params = window._wpPluploadSettings.defaults.multipart_params || {};
+            window._wpPluploadSettings.defaults.multipart_params.pdl_upload_limit_message = message;
+        }
+        document.addEventListener('wp-uploader-error', function(event) {
+            if (!event || !event.detail || !event.detail.message) {
+                return;
+            }
+            if (event.detail.message.indexOf('kích thước tải lên tối đa') !== -1 || event.detail.message.indexOf('maximum upload size') !== -1) {
+                event.detail.message = message;
+            }
+        });
+    })();
+    </script>
+    <?php
+}
+add_action( 'admin_footer-upload.php', 'pdl_admin_utilities_upload_limit_admin_script', 20 );
+add_action( 'admin_footer-media-new.php', 'pdl_admin_utilities_upload_limit_admin_script', 20 );
+
 function pdl_admin_utilities_validate_image_upload( $file ) {
     if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) ) {
         return $file;
@@ -314,11 +390,11 @@ function pdl_admin_utilities_validate_image_upload( $file ) {
         return $file;
     }
 
-    $max_size = (int) pdl_admin_utilities_setting( 'upload_limits', 'max_image_size', 2 * 1024 * 1024 );
+    $max_size = pdl_admin_utilities_max_image_size();
     $size     = (int) ( $file['size'] ?? 0 );
 
     if ( $max_size > 0 && $size > $max_size ) {
-        $file['error'] = 'Website được thiết kế để tối ưu trải nghiệm người dùng, chỉ cho phép upload ảnh tối đa 2Mb, vui lòng giảm dung lương ảnh trước khi upload.';
+        $file['error'] = pdl_admin_utilities_upload_limit_message();
     }
 
     return $file;

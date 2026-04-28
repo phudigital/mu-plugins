@@ -127,6 +127,7 @@ function wp_die( $message ) { throw new RuntimeException( $message ); }
 function esc_html__( $value ) { return $value; }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_url( $value ) { return $value; }
+function wp_json_encode( $value ) { return json_encode( $value ); }
 function add_query_arg( $args, $url ) { return $url . '&' . http_build_query( $args ); }
 function size_format( $bytes ) { return ( $bytes / 1024 / 1024 ) . ' MB'; }
 function pdl_hidden_plugins_is_super_admin() { return $GLOBALS['is_pdl_super_admin']; }
@@ -220,6 +221,21 @@ assert_same(
     pdl_admin_utilities_upload_size_limit( 100 * 1024 * 1024 ),
     'Media uploader should advertise the 2MB limit before upload starts.'
 );
+assert_same( '2Mb', pdl_admin_utilities_upload_limit_label(), 'Upload limit label should be explicit.' );
+assert_same(
+    'Tệp vượt quá kích thước tải lên tối đa cho trang web này (tối đa 2Mb). Vui lòng giảm dung lượng ảnh trước khi upload.',
+    pdl_admin_utilities_upload_size_error_message(),
+    'Uploader size error should include the maximum size.'
+);
+
+ob_start();
+pdl_admin_utilities_upload_limit_admin_script();
+$upload_script = ob_get_clean();
+assert_same(
+    true,
+    false !== strpos( $upload_script, 'file_exceeds_size_limit' ) && false !== strpos( $upload_script, '2Mb' ),
+    'Uploader script should override the default max-size message with an explicit limit.'
+);
 
 $upload = pdl_admin_utilities_validate_image_upload(
     [
@@ -246,7 +262,7 @@ $upload = pdl_admin_utilities_validate_image_upload(
         'size' => ( 2 * 1024 * 1024 ) + 1,
     ]
 );
-assert_same( 'Website được thiết kế để tối ưu trải nghiệm người dùng, chỉ cho phép upload ảnh tối đa 2Mb, vui lòng giảm dung lương ảnh trước khi upload.', $upload['error'], 'Images over 2MB should be blocked.' );
+assert_same( 'Website được thiết kế để tối ưu trải nghiệm người dùng, chỉ cho phép upload ảnh tối đa 2Mb, vui lòng giảm dung lượng ảnh trước khi upload.', $upload['error'], 'Images over 2MB should be blocked.' );
 
 $upload = pdl_admin_utilities_validate_image_upload(
     [
