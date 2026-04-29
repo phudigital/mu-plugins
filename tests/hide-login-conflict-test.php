@@ -4,7 +4,7 @@ define( 'ABSPATH', __DIR__ );
 $actions = [];
 $filters = [];
 $options = [
-    'active_plugins'      => [ 'jetpack/jetpack.php' ],
+    'active_plugins'      => [ 'woocommerce/woocommerce.php' ],
     'permalink_structure' => '/%postname%/',
 ];
 
@@ -62,9 +62,17 @@ $registered_hooks = array_map(
     $actions
 );
 
-assert_same( 'Jetpack', $GLOBALS['pdl_hide_login_handled_by'] ?? '', 'Jetpack should make PDL Hide Login yield.' );
+assert_same( 'WooCommerce', $GLOBALS['pdl_hide_login_handled_by'] ?? '', 'WooCommerce should make PDL Hide Login yield.' );
 assert_same( true, in_array( 'admin_notices', $registered_hooks, true ), 'Conflict should register an admin notice.' );
 assert_same( false, in_array( 'plugins_loaded', $registered_hooks, true ), 'Conflict should not register login request rewriting.' );
 assert_same( false, in_array( 'wp_loaded', $registered_hooks, true ), 'Conflict should not register login redirects.' );
+
+$GLOBALS['actions'] = [];
+$GLOBALS['filters'] = [];
+$GLOBALS['options']['active_plugins'] = [ 'jetpack/jetpack.php' ];
+unset( $GLOBALS['pdl_hide_login_handled_by'] );
+
+assert_same( true, pdl_hide_login_should_skip_module(), 'Jetpack should make PDL Hide Login yield.' );
+assert_same( 'Jetpack', $GLOBALS['pdl_hide_login_handled_by'] ?? '', 'Jetpack conflict should be reported.' );
 
 echo "hide-login-conflict-test OK\n";

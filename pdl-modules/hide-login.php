@@ -111,6 +111,10 @@ function pdl_hide_login_should_skip_module() {
         return true;
     }
 
+    if ( defined( 'PDL_HIDE_LOGIN_FORCE_ENABLE' ) && PDL_HIDE_LOGIN_FORCE_ENABLE ) {
+        return false;
+    }
+
     if ( pdl_hide_login_regular_plugin_is_active( 'wps-hide-login/wps-hide-login.php' ) ) {
         pdl_hide_login_sync_wps_hide_login_options();
         $GLOBALS['pdl_hide_login_handled_by'] = 'WPS Hide Login';
@@ -121,6 +125,8 @@ function pdl_hide_login_should_skip_module() {
         'pdl_hide_login_conflicting_regular_plugins',
         array(
             'rename-wp-login/rename-wp-login.php'                    => 'Rename wp-login.php',
+            'woocommerce/woocommerce.php'                             => 'WooCommerce',
+            'yith-woocommerce-wishlist/init.php'                      => 'YITH WooCommerce Wishlist',
             'jetpack/jetpack.php'                                     => 'Jetpack',
             'really-simple-ssl/rlrsssl-really-simple-ssl.php'         => 'Really Simple Security',
             'limit-login-attempts-reloaded/limit-login-attempts-reloaded.php' => 'Limit Login Attempts Reloaded',
@@ -132,9 +138,8 @@ function pdl_hide_login_should_skip_module() {
         if ( pdl_hide_login_regular_plugin_is_active( $plugin_file ) ) {
             pdl_hide_login_admin_conflict_notice(
                 sprintf(
-                    'PDL Hide Login đã tạm nhường vì phát hiện plugin %s đang active. Hãy tắt plugin đó hoặc cấu hình nó dùng /%s/.',
-                    $plugin_name,
-                    pdl_hide_login_slug()
+                    'PDL Hide Login đã tự tắt để tránh xung đột vì phát hiện plugin %s đang active. Website vẫn chạy bình thường; nếu vẫn muốn ép bật đổi URL login, thêm define( "PDL_HIDE_LOGIN_FORCE_ENABLE", true ) vào wp-config.php.',
+                    $plugin_name
                 )
             );
 
