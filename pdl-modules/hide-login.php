@@ -91,11 +91,16 @@ function pdl_hide_login_sync_wps_hide_login_options() {
 }
 
 function pdl_hide_login_admin_conflict_notice( $message ) {
+    if ( function_exists( 'pdl_core_manager_admin_notice' ) ) {
+        pdl_core_manager_admin_notice( $message, 'warning' );
+        return;
+    }
+
     add_action(
         'admin_notices',
         function () use ( $message ) {
             if ( current_user_can( 'manage_options' ) ) {
-                echo '<div class="notice notice-warning"><p>' . esc_html( $message ) . '</p></div>';
+                echo '<div class="notice notice-warning pdl-admin-notice"><p>' . esc_html( $message ) . '</p></div>';
             }
         }
     );
@@ -115,7 +120,11 @@ function pdl_hide_login_should_skip_module() {
     $conflicting_plugins = apply_filters(
         'pdl_hide_login_conflicting_regular_plugins',
         array(
-            'rename-wp-login/rename-wp-login.php' => 'Rename wp-login.php',
+            'rename-wp-login/rename-wp-login.php'                    => 'Rename wp-login.php',
+            'jetpack/jetpack.php'                                     => 'Jetpack',
+            'really-simple-ssl/rlrsssl-really-simple-ssl.php'         => 'Really Simple Security',
+            'limit-login-attempts-reloaded/limit-login-attempts-reloaded.php' => 'Limit Login Attempts Reloaded',
+            'limit-login-attempts/limit-login-attempts.php'           => 'Limit Login Attempts',
         )
     );
 
@@ -419,4 +428,10 @@ function pdl_hide_login_block_signup_access() {
 }
 add_action( 'init', 'pdl_hide_login_block_signup_access' );
 
-remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+add_action(
+    'template_redirect',
+    function() {
+        remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+    },
+    0
+);

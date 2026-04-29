@@ -140,6 +140,9 @@ function pdl_admin_utilities_hide_admin_notices_styles() {
         body.wp-admin #wp-admin-bar-updates {
             display: none !important;
         }
+        body.wp-admin .notice.pdl-admin-notice {
+            display: block !important;
+        }
     </style>
     <?php
 }

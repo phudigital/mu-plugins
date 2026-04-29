@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PDL Solutions — Core Manager
  * Description: Bộ MU-plugin quản trị website khách hàng PDL: dashboard hỗ trợ, branding đăng nhập, đổi URL login, dọn admin, ẩn menu/plugin và sao chép nội dung.
- * Version: 1.3.5
+ * Version: 1.3.6
  * Author: Công Ty TNHH Giải Pháp PDL
  * Author URI: https://pdl.vn
  */
@@ -10,7 +10,62 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 define( 'PDL_MODULES_DIR', __DIR__ . '/pdl-modules/' );
-define( 'PDL_VERSION', '1.3.5' );
+define( 'PDL_VERSION', '1.3.6' );
+define( 'PDL_MODULE_ERRORS_OPTION', 'pdl_core_manager_module_errors' );
+
+function pdl_core_manager_admin_notice( $message, $type = 'warning' ) {
+    add_action(
+        'admin_notices',
+        function () use ( $message, $type ) {
+            if ( current_user_can( 'manage_options' ) ) {
+                printf(
+                    '<div class="notice notice-%s pdl-admin-notice is-dismissible"><p>%s</p></div>',
+                    esc_attr( $type ),
+                    esc_html( $message )
+                );
+            }
+        }
+    );
+}
+
+function pdl_core_manager_record_module_error( $module, $message ) {
+    $errors            = (array) get_option( PDL_MODULE_ERRORS_OPTION, array() );
+    $errors[ $module ] = array(
+        'message' => sanitize_text_field( $message ),
+        'time'    => current_time( 'mysql' ),
+    );
+
+    update_option( PDL_MODULE_ERRORS_OPTION, $errors, false );
+}
+
+function pdl_core_manager_clear_module_error( $module ) {
+    $errors = (array) get_option( PDL_MODULE_ERRORS_OPTION, array() );
+
+    if ( isset( $errors[ $module ] ) ) {
+        unset( $errors[ $module ] );
+        update_option( PDL_MODULE_ERRORS_OPTION, $errors, false );
+    }
+}
+
+function pdl_core_manager_show_module_error_notices() {
+    $errors = (array) get_option( PDL_MODULE_ERRORS_OPTION, array() );
+
+    foreach ( $errors as $module => $error ) {
+        $message = isset( $error['message'] ) ? (string) $error['message'] : 'Không rõ lỗi.';
+        $time    = isset( $error['time'] ) ? (string) $error['time'] : '';
+
+        pdl_core_manager_admin_notice(
+            sprintf(
+                'PDL Core Manager đã tạm bỏ qua module "%s" vì gặp lỗi: %s%s',
+                $module,
+                $message,
+                $time ? ' (' . $time . ')' : ''
+            ),
+            'error'
+        );
+    }
+}
+add_action( 'admin_init', 'pdl_core_manager_show_module_error_notices' );
 
 /**
  * ==================================================
@@ -34,7 +89,13 @@ foreach ( $pdl_modules as $module => $enabled ) {
     if ( $enabled ) {
         $file = PDL_MODULES_DIR . $module . '.php';
         if ( file_exists( $file ) ) {
-            require_once $file;
+            try {
+                require_once $file;
+                pdl_core_manager_clear_module_error( $module );
+            } catch ( Throwable $exception ) {
+                pdl_core_manager_record_module_error( $module, $exception->getMessage() );
+                error_log( sprintf( 'PDL Core Manager skipped module %s: %s', $module, $exception->getMessage() ) );
+            }
         }
     }
 }
