@@ -71,6 +71,10 @@ function pdl_admin_utilities_updates_super_admin_only() {
     return (bool) pdl_admin_utilities_setting( 'admin_notices', 'super_admin_only_updates', true );
 }
 
+function pdl_admin_utilities_upload_limits_apply() {
+    return pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) && ! pdl_admin_utilities_is_super_admin();
+}
+
 function pdl_admin_utilities_cleanup_admin_bar( $wp_admin_bar ) {
     $map = [
         'remove_wp_logo'     => 'wp-logo',
@@ -306,7 +310,7 @@ function pdl_admin_utilities_handle_duplicate_action() {
 add_action( 'admin_action_pdl_duplicate_content', 'pdl_admin_utilities_handle_duplicate_action' );
 
 function pdl_admin_utilities_upload_size_limit( $size ) {
-    if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) ) {
+    if ( ! pdl_admin_utilities_upload_limits_apply() ) {
         return $size;
     }
 
@@ -364,7 +368,7 @@ function pdl_admin_utilities_upload_size_error_message() {
 }
 
 function pdl_admin_utilities_upload_limit_admin_script() {
-    if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) || pdl_admin_utilities_max_image_size() <= 0 ) {
+    if ( ! pdl_admin_utilities_upload_limits_apply() || pdl_admin_utilities_max_image_size() <= 0 ) {
         return;
     }
 
@@ -397,7 +401,7 @@ add_action( 'admin_footer-upload.php', 'pdl_admin_utilities_upload_limit_admin_s
 add_action( 'admin_footer-media-new.php', 'pdl_admin_utilities_upload_limit_admin_script', 20 );
 
 function pdl_admin_utilities_validate_image_upload( $file ) {
-    if ( ! pdl_admin_utilities_setting( 'upload_limits', 'images_only' ) ) {
+    if ( ! pdl_admin_utilities_upload_limits_apply() ) {
         return $file;
     }
 

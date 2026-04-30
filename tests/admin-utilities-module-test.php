@@ -279,4 +279,26 @@ $upload = pdl_admin_utilities_validate_image_upload(
 );
 assert_same( 'PDL chỉ cho phép upload file hình ảnh.', $upload['error'], 'Non-image uploads should be blocked.' );
 
+$GLOBALS['is_pdl_super_admin'] = true;
+
+assert_same(
+    100 * 1024 * 1024,
+    pdl_admin_utilities_upload_size_limit( 100 * 1024 * 1024 ),
+    'Super admins should keep the original upload size limit.'
+);
+
+ob_start();
+pdl_admin_utilities_upload_limit_admin_script();
+$super_admin_upload_script = ob_get_clean();
+assert_same( '', $super_admin_upload_script, 'Super admins should not receive the upload-limit admin script.' );
+
+$upload = pdl_admin_utilities_validate_image_upload(
+    [
+        'name' => 'plugin.zip',
+        'type' => 'application/zip',
+        'size' => 10 * 1024 * 1024,
+    ]
+);
+assert_same( null, $upload['error'] ?? null, 'Super admins should be allowed to upload non-image files.' );
+
 echo "admin-utilities-module-test OK\n";
