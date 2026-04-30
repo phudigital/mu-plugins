@@ -5,6 +5,30 @@ if ( ! defined( 'PDL_ADMIN_MENU_OPTION' ) ) {
     define( 'PDL_ADMIN_MENU_OPTION', 'pdl_admin_menu_hidden' );
 }
 
+if ( ! defined( 'PDL_ADMIN_MENU_SETTINGS_OPTION' ) ) {
+    define( 'PDL_ADMIN_MENU_SETTINGS_OPTION', 'pdl_admin_menu_settings' );
+}
+
+function pdl_admin_menu_get_settings() {
+    $defaults = [
+        'apply_to_super_admins' => false,
+    ];
+
+    $settings = get_option( PDL_ADMIN_MENU_SETTINGS_OPTION, [] );
+
+    if ( ! is_array( $settings ) ) {
+        $settings = [];
+    }
+
+    return array_merge( $defaults, $settings );
+}
+
+function pdl_admin_menu_applies_to_super_admins() {
+    $settings = pdl_admin_menu_get_settings();
+
+    return ! empty( $settings['apply_to_super_admins'] );
+}
+
 function pdl_admin_menu_get_controller_user_id() {
     $users = get_users(
         [
@@ -28,6 +52,19 @@ function pdl_admin_menu_is_controller_user( $user_id = null ) {
     }
 
     return $user_id > 0 && $user_id === pdl_admin_menu_get_controller_user_id();
+}
+
+function pdl_admin_menu_is_super_admin_user( $user_id = null ) {
+    if ( null === $user_id ) {
+        $user    = wp_get_current_user();
+        $user_id = isset( $user->ID ) ? (int) $user->ID : 0;
+    }
+
+    if ( function_exists( 'is_super_admin' ) ) {
+        return is_super_admin( $user_id );
+    }
+
+    return false;
 }
 
 function pdl_admin_menu_build_entry_key( $type, $slug, $parent_slug = '' ) {
@@ -225,8 +262,19 @@ function pdl_admin_menu_remove_entry( $entry_key, $entries = null ) {
     remove_menu_page( $entry['slug'] );
 }
 
+function pdl_admin_menu_is_controller_settings_parent_entry( $entry ) {
+    return 'menu' === $entry['type'] && 'options-general.php' === $entry['slug'];
+}
+
 function pdl_admin_menu_apply_hidden() {
-    if ( pdl_admin_menu_is_controller_user() ) {
+    $apply_to_super_admins = pdl_admin_menu_applies_to_super_admins();
+    $is_controller_user    = pdl_admin_menu_is_controller_user();
+
+    if ( $is_controller_user && ! $apply_to_super_admins ) {
+        return;
+    }
+
+    if ( ! $apply_to_super_admins && pdl_admin_menu_is_super_admin_user() ) {
         return;
     }
 
@@ -234,6 +282,10 @@ function pdl_admin_menu_apply_hidden() {
     $hidden  = pdl_admin_menu_get_hidden_keys( $entries );
 
     foreach ( $hidden as $entry_key ) {
+        if ( $is_controller_user && isset( $entries[ $entry_key ] ) && pdl_admin_menu_is_controller_settings_parent_entry( $entries[ $entry_key ] ) ) {
+            continue;
+        }
+
         pdl_admin_menu_remove_entry( $entry_key, $entries );
     }
 }
@@ -268,8 +320,12 @@ function pdl_admin_menu_save_settings() {
     $all_keys  = array_keys( $entries );
     $submitted = isset( $_POST['pdl_admin_menu_hidden'] ) ? (array) wp_unslash( $_POST['pdl_admin_menu_hidden'] ) : [];
     $to_save   = array_values( array_intersect( $submitted, $all_keys ) );
+    $settings  = [
+        'apply_to_super_admins' => ! empty( $_POST['pdl_admin_menu_apply_to_super_admins'] ),
+    ];
 
     update_option( PDL_ADMIN_MENU_OPTION, $to_save );
+    update_option( PDL_ADMIN_MENU_SETTINGS_OPTION, $settings );
 
     add_action(
         'admin_notices',
@@ -297,6 +353,9 @@ function pdl_admin_menu_admin_styles() {
         .pdl-am-search{width:100%;padding:8px 12px;border:1px solid #d9dee8;background:#fff}
         .pdl-am-toolbar button,.pdl-am-actions button{padding:7px 14px;border:1px solid #d9dee8;background:#fff;color:#344054;cursor:pointer}
         .pdl-am-toolbar button:hover,.pdl-am-actions button:hover{border-color:#2f6fb3;background:#eef5ff;color:#1a4fa0}
+        .pdl-am-option{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 14px;padding:14px 16px;border:1px solid #e8e8f0;border-radius:10px;background:#fff;box-shadow:0 2px 16px rgba(16,24,40,.04)}
+        .pdl-am-option strong{display:block;margin-bottom:3px;color:#202939;font-size:13px}
+        .pdl-am-option span{display:block;color:#667085;font-size:12px;line-height:1.45}
         .pdl-am-summary{display:flex;justify-content:space-between;gap:12px;margin:0 0 16px;color:#667085;font-size:12px}
         .pdl-am-tree{display:grid;gap:10px}
         .pdl-am-group{overflow:hidden;border:1px solid #e8e8f0;border-radius:10px;background:#fff;box-shadow:0 2px 16px rgba(16,24,40,.06)}
@@ -322,7 +381,7 @@ function pdl_admin_menu_admin_styles() {
         .pdl-am-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px;color:#667085;font-size:12px}
         .pdl-am-save{padding:10px 26px;border:0;background:#273253;color:#fff;font-weight:700;cursor:pointer}
         .pdl-am-empty{display:none;padding:22px;border:1px dashed #cbd5e1;border-radius:10px;background:#fff;text-align:center;color:#667085}
-        @media(max-width:782px){#pdl-admin-menu-wrap{margin:18px 12px 48px}.pdl-am-head,.pdl-am-footer,.pdl-am-summary{display:block}.pdl-am-badge,.pdl-am-save{margin-top:14px}.pdl-am-toolbar{grid-template-columns:1fr 1fr}.pdl-am-search{grid-column:1/-1}.pdl-am-parent{grid-template-columns:auto minmax(0,1fr) auto}.pdl-am-actions{display:none}.pdl-am-child{padding-left:42px;flex-wrap:wrap}.pdl-am-slug{max-width:100%}}
+        @media(max-width:782px){#pdl-admin-menu-wrap{margin:18px 12px 48px}.pdl-am-head,.pdl-am-footer,.pdl-am-summary,.pdl-am-option{display:block}.pdl-am-badge,.pdl-am-save,.pdl-am-option .pdl-am-switch{margin-top:14px}.pdl-am-toolbar{grid-template-columns:1fr 1fr}.pdl-am-search{grid-column:1/-1}.pdl-am-parent{grid-template-columns:auto minmax(0,1fr) auto}.pdl-am-actions{display:none}.pdl-am-child{padding-left:42px;flex-wrap:wrap}.pdl-am-slug{max-width:100%}}
     </style>
     <?php
 }
@@ -352,6 +411,7 @@ function pdl_admin_menu_settings_page() {
     $entries   = pdl_admin_menu_get_entries();
     $menu_tree = pdl_admin_menu_get_tree( $entries );
     $hidden    = pdl_admin_menu_get_hidden_keys( $entries );
+    $settings  = pdl_admin_menu_get_settings();
     ?>
     <div id="pdl-admin-menu-wrap">
         <div class="pdl-am-head">
@@ -372,6 +432,17 @@ function pdl_admin_menu_settings_page() {
                 <button type="button" onclick="pdlAdminMenuCollapseAll(true)">Thu gọn</button>
                 <button type="button" onclick="pdlAdminMenuToggleAll(false)">Hiện tất cả</button>
                 <button type="button" onclick="pdlAdminMenuToggleAll(true)">Ẩn tất cả</button>
+            </div>
+
+            <div class="pdl-am-option">
+                <div>
+                    <strong>Áp dụng ẩn menu cho super admin</strong>
+                    <span>Bật: super admin cũng bị áp rule ẩn menu. User gốc vẫn giữ PDL Admin Menu để cấu hình.</span>
+                </div>
+                <label class="pdl-am-switch">
+                    <input type="checkbox" name="pdl_admin_menu_apply_to_super_admins" value="1" <?php checked( ! empty( $settings['apply_to_super_admins'] ) ); ?>>
+                    <span class="pdl-am-slider"></span>
+                </label>
             </div>
 
             <div class="pdl-am-summary">

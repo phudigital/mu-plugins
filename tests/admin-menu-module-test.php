@@ -14,6 +14,7 @@ $options = [
 $removed_menus = [];
 $removed_submenus = [];
 $current_user_id = 2;
+$super_admin_user_ids = [];
 
 function add_action( $hook, $callback, $priority = 10 ) {
     $GLOBALS['actions'][] = [ $hook, $callback, $priority ];
@@ -37,6 +38,12 @@ function get_users( $args = [] ) {
 
 function wp_get_current_user() {
     return (object) [ 'ID' => $GLOBALS['current_user_id'] ];
+}
+
+function is_super_admin( $user_id = false ) {
+    $user_id = false === $user_id ? $GLOBALS['current_user_id'] : (int) $user_id;
+
+    return in_array( $user_id, $GLOBALS['super_admin_user_ids'], true );
 }
 
 function remove_menu_page( $slug ) {
@@ -91,6 +98,7 @@ $entries = pdl_admin_menu_get_entries();
 assert_same( true, isset( $entries['menu:tools.php'] ), 'Top-level menu key should be discovered.' );
 assert_same( true, isset( $entries['submenu:options-general.php|options-permalink.php'] ), 'Submenu key should be discovered.' );
 assert_same( 'Pages', $entries['menu:edit.php?post_type=page']['label'], 'Menu labels should be normalized.' );
+assert_same( false, pdl_admin_menu_applies_to_super_admins(), 'Super admin hiding should be opt-in by default.' );
 
 assert_same(
     [ 'menu:tools.php', 'submenu:options-general.php|options-permalink.php' ],
@@ -108,5 +116,38 @@ $GLOBALS['removed_submenus'] = [];
 pdl_admin_menu_apply_hidden();
 assert_same( [], $removed_menus, 'Controller user should keep full menu.' );
 assert_same( [], $removed_submenus, 'Controller user should keep full submenu.' );
+
+$GLOBALS['current_user_id'] = 3;
+$GLOBALS['super_admin_user_ids'] = [ 3 ];
+$GLOBALS['options']['pdl_admin_menu_settings'] = [
+    'apply_to_super_admins' => false,
+];
+$GLOBALS['removed_menus'] = [];
+$GLOBALS['removed_submenus'] = [];
+pdl_admin_menu_apply_hidden();
+assert_same( [], $removed_menus, 'Super admins should keep full menu when the setting is disabled.' );
+assert_same( [], $removed_submenus, 'Super admins should keep full submenu when the setting is disabled.' );
+
+$GLOBALS['options']['pdl_admin_menu_settings'] = [
+    'apply_to_super_admins' => true,
+];
+$GLOBALS['removed_menus'] = [];
+$GLOBALS['removed_submenus'] = [];
+pdl_admin_menu_apply_hidden();
+assert_same( [ 'tools.php' ], $removed_menus, 'Super admins should have hidden top-level menus removed when the setting is enabled.' );
+assert_same( [ [ 'options-general.php', 'options-permalink.php' ] ], $removed_submenus, 'Super admins should have hidden submenus removed when the setting is enabled.' );
+
+$GLOBALS['current_user_id'] = 1;
+$GLOBALS['super_admin_user_ids'] = [ 1 ];
+$GLOBALS['options']['pdl_admin_menu_hidden'] = [
+    'tools.php',
+    'options-general.php',
+    'submenu:options-general.php|options-permalink.php',
+];
+$GLOBALS['removed_menus'] = [];
+$GLOBALS['removed_submenus'] = [];
+pdl_admin_menu_apply_hidden();
+assert_same( [ 'tools.php' ], $removed_menus, 'Controller user should receive hidden menus when super admin hiding is enabled.' );
+assert_same( [ [ 'options-general.php', 'options-permalink.php' ] ], $removed_submenus, 'Controller user should receive hidden submenus when super admin hiding is enabled.' );
 
 echo "admin-menu-module-test OK\n";
