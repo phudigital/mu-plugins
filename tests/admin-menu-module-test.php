@@ -67,6 +67,28 @@ function wp_nonce_field() {}
 function add_options_page() {}
 function wp_die( $message ) { throw new RuntimeException( $message ); }
 
+function run_registered_actions( $hook ) {
+    $callbacks = array_values(
+        array_filter(
+            $GLOBALS['actions'],
+            function( $action ) use ( $hook ) {
+                return $action[0] === $hook;
+            }
+        )
+    );
+
+    usort(
+        $callbacks,
+        function( $a, $b ) {
+            return $a[2] <=> $b[2];
+        }
+    );
+
+    foreach ( $callbacks as $callback ) {
+        call_user_func( $callback[1] );
+    }
+}
+
 global $menu, $submenu;
 $menu = [
     [ 'Dashboard', 'read', 'index.php' ],
@@ -149,5 +171,45 @@ $GLOBALS['removed_submenus'] = [];
 pdl_admin_menu_apply_hidden();
 assert_same( [ 'tools.php' ], $removed_menus, 'Controller user should receive hidden menus when super admin hiding is enabled.' );
 assert_same( [ [ 'options-general.php', 'options-permalink.php' ] ], $removed_submenus, 'Controller user should receive hidden submenus when super admin hiding is enabled.' );
+
+$GLOBALS['current_user_id'] = 1;
+$GLOBALS['super_admin_user_ids'] = [ 1 ];
+$GLOBALS['options'][ PDL_ADMIN_MENU_OPTION ] = [];
+$GLOBALS['options'][ PDL_ADMIN_MENU_SETTINGS_OPTION ] = [
+    'apply_to_super_admins' => true,
+];
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$_POST = [
+    'pdl_admin_menu_nonce' => 'nonce',
+    'pdl_admin_menu_hidden' => [
+        'menu:tools.php',
+        'submenu:options-general.php|options-permalink.php',
+    ],
+    'pdl_admin_menu_apply_to_super_admins' => '1',
+];
+$menu = [];
+$submenu = [];
+run_registered_actions( 'admin_init' );
+$menu = [
+    [ 'Dashboard', 'read', 'index.php' ],
+    [ 'Tools', 'manage_options', 'tools.php' ],
+    [ 'Settings', 'manage_options', 'options-general.php' ],
+];
+$submenu = [
+    'options-general.php' => [
+        [ 'General', 'manage_options', 'options-general.php' ],
+        [ 'Permalinks', 'manage_options', 'options-permalink.php' ],
+    ],
+];
+$GLOBALS['removed_menus'] = [];
+$GLOBALS['removed_submenus'] = [];
+run_registered_actions( 'admin_menu' );
+assert_same(
+    [ 'menu:tools.php', 'submenu:options-general.php|options-permalink.php' ],
+    $GLOBALS['options'][ PDL_ADMIN_MENU_OPTION ],
+    'Saving must validate against the runtime menu after admin_menu has built it, not the empty admin_init state.'
+);
+assert_same( [ 'tools.php' ], $removed_menus, 'Saved runtime snapshot should be applied during the same request.' );
+assert_same( [ [ 'options-general.php', 'options-permalink.php' ] ], $removed_submenus, 'Saved runtime submenu snapshot should be applied during the same request.' );
 
 echo "admin-menu-module-test OK\n";

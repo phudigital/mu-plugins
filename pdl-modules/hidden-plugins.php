@@ -252,7 +252,7 @@ function pdl_hidden_plugins_settings_page() {
                 <h1>PDL Hidden Plugins</h1>
                 <p>Ẩn plugin khỏi trang Plugins cho các tài khoản không phải super admin.</p>
             </div>
-            <span class="pdl-hp-badge">Super admin only</span>
+            <span class="pdl-hp-badge">Super admin only - v<?php echo esc_html( defined( 'PDL_VERSION' ) ? PDL_VERSION : 'dev' ); ?></span>
         </div>
 
         <form method="post">

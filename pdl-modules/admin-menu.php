@@ -9,6 +9,18 @@ if ( ! defined( 'PDL_ADMIN_MENU_SETTINGS_OPTION' ) ) {
     define( 'PDL_ADMIN_MENU_SETTINGS_OPTION', 'pdl_admin_menu_settings' );
 }
 
+if ( ! defined( 'PDL_ADMIN_MENU_CAPTURE_PRIORITY' ) ) {
+    define( 'PDL_ADMIN_MENU_CAPTURE_PRIORITY', PHP_INT_MAX - 30 );
+}
+
+if ( ! defined( 'PDL_ADMIN_MENU_SAVE_PRIORITY' ) ) {
+    define( 'PDL_ADMIN_MENU_SAVE_PRIORITY', PHP_INT_MAX - 20 );
+}
+
+if ( ! defined( 'PDL_ADMIN_MENU_APPLY_PRIORITY' ) ) {
+    define( 'PDL_ADMIN_MENU_APPLY_PRIORITY', PHP_INT_MAX - 10 );
+}
+
 function pdl_admin_menu_get_settings() {
     $defaults = [
         'apply_to_super_admins' => false,
@@ -160,6 +172,19 @@ function pdl_admin_menu_get_entries() {
     return $entries;
 }
 
+function pdl_admin_menu_capture_runtime_entries() {
+    $GLOBALS['pdl_admin_menu_runtime_entries'] = pdl_admin_menu_get_entries();
+}
+add_action( 'admin_menu', 'pdl_admin_menu_capture_runtime_entries', PDL_ADMIN_MENU_CAPTURE_PRIORITY );
+
+function pdl_admin_menu_get_runtime_entries() {
+    if ( isset( $GLOBALS['pdl_admin_menu_runtime_entries'] ) && is_array( $GLOBALS['pdl_admin_menu_runtime_entries'] ) ) {
+        return $GLOBALS['pdl_admin_menu_runtime_entries'];
+    }
+
+    return pdl_admin_menu_get_entries();
+}
+
 function pdl_admin_menu_normalize_hidden_keys( $hidden, $entries = null ) {
     if ( ! is_array( $hidden ) ) {
         return [];
@@ -278,7 +303,7 @@ function pdl_admin_menu_apply_hidden() {
         return;
     }
 
-    $entries = pdl_admin_menu_get_entries();
+    $entries = pdl_admin_menu_get_runtime_entries();
     $hidden  = pdl_admin_menu_get_hidden_keys( $entries );
 
     foreach ( $hidden as $entry_key ) {
@@ -289,7 +314,7 @@ function pdl_admin_menu_apply_hidden() {
         pdl_admin_menu_remove_entry( $entry_key, $entries );
     }
 }
-add_action( 'admin_menu', 'pdl_admin_menu_apply_hidden', 999 );
+add_action( 'admin_menu', 'pdl_admin_menu_apply_hidden', PDL_ADMIN_MENU_APPLY_PRIORITY );
 
 function pdl_admin_menu_register_settings_page() {
     if ( ! pdl_admin_menu_is_controller_user() ) {
@@ -316,7 +341,7 @@ function pdl_admin_menu_save_settings() {
         return;
     }
 
-    $entries   = pdl_admin_menu_get_entries();
+    $entries   = pdl_admin_menu_get_runtime_entries();
     $all_keys  = array_keys( $entries );
     $submitted = isset( $_POST['pdl_admin_menu_hidden'] ) ? (array) wp_unslash( $_POST['pdl_admin_menu_hidden'] ) : [];
     $to_save   = array_values( array_intersect( $submitted, $all_keys ) );
@@ -334,7 +359,7 @@ function pdl_admin_menu_save_settings() {
         }
     );
 }
-add_action( 'admin_init', 'pdl_admin_menu_save_settings' );
+add_action( 'admin_menu', 'pdl_admin_menu_save_settings', PDL_ADMIN_MENU_SAVE_PRIORITY );
 
 function pdl_admin_menu_admin_styles() {
     if ( ! isset( $_GET['page'] ) || 'pdl-admin-menu' !== $_GET['page'] ) {
@@ -408,7 +433,7 @@ function pdl_admin_menu_settings_page() {
         wp_die( 'Bạn không có quyền truy cập trang này.' );
     }
 
-    $entries   = pdl_admin_menu_get_entries();
+    $entries   = pdl_admin_menu_get_runtime_entries();
     $menu_tree = pdl_admin_menu_get_tree( $entries );
     $hidden    = pdl_admin_menu_get_hidden_keys( $entries );
     $settings  = pdl_admin_menu_get_settings();
@@ -420,7 +445,7 @@ function pdl_admin_menu_settings_page() {
                 <h1>PDL Admin Menu</h1>
                 <p>Ẩn menu WordPress Admin theo menu thật của website hiện tại.</p>
             </div>
-            <span class="pdl-am-badge">Oldest user only</span>
+            <span class="pdl-am-badge">Oldest user only - v<?php echo esc_html( defined( 'PDL_VERSION' ) ? PDL_VERSION : 'dev' ); ?></span>
         </div>
 
         <form method="post">
