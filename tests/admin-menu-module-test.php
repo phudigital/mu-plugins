@@ -212,4 +212,11 @@ assert_same(
 assert_same( [ 'tools.php' ], $removed_menus, 'Saved runtime snapshot should be applied during the same request.' );
 assert_same( [ [ 'options-general.php', 'options-permalink.php' ] ], $removed_submenus, 'Saved runtime submenu snapshot should be applied during the same request.' );
 
+ob_start();
+pdl_admin_menu_settings_page();
+$settings_html = ob_get_clean();
+assert_same( true, false !== strpos( $settings_html, 'Tree Control Panel' ), 'Settings UI should render the redesigned control panel header.' );
+assert_same( true, false !== strpos( $settings_html, 'pdl-am-status' ), 'Settings UI should render per-group status labels.' );
+assert_same( true, false !== strpos( $settings_html, 'pdl-am-dirty' ), 'Settings UI should render the unsaved-change indicator.' );
+
 echo "admin-menu-module-test OK\n";
