@@ -72,11 +72,7 @@ function pdl_admin_menu_is_super_admin_user( $user_id = null ) {
         $user_id = isset( $user->ID ) ? (int) $user->ID : 0;
     }
 
-    if ( function_exists( 'is_super_admin' ) ) {
-        return is_super_admin( $user_id );
-    }
-
-    return false;
+    return pdl_admin_menu_is_controller_user( $user_id );
 }
 
 function pdl_admin_menu_build_entry_key( $type, $slug, $parent_slug = '' ) {
@@ -497,8 +493,8 @@ function pdl_admin_menu_settings_page() {
 
                 <div class="pdl-am-option">
                     <div>
-                        <strong>Áp dụng ẩn menu cho super admin</strong>
-                        <span>Bật tùy chọn này khi muốn super admin cũng nhìn thấy admin menu đã được dọn gọn.</span>
+                        <strong>Áp dụng ẩn menu cho super admin duy nhất</strong>
+                        <span>Super admin là user cũ nhất trên site và là người duy nhất được cấu hình màn hình này; mọi admin khác vẫn bị áp rule ẩn menu.</span>
                     </div>
                     <label class="pdl-am-switch">
                         <input type="checkbox" name="pdl_admin_menu_apply_to_super_admins" value="1" <?php checked( ! empty( $settings['apply_to_super_admins'] ) ); ?> data-initial="<?php echo ! empty( $settings['apply_to_super_admins'] ) ? '1' : '0'; ?>" onchange="pdlAdminMenuMarkDirty()">

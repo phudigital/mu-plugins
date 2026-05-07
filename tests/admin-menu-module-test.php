@@ -147,8 +147,8 @@ $GLOBALS['options']['pdl_admin_menu_settings'] = [
 $GLOBALS['removed_menus'] = [];
 $GLOBALS['removed_submenus'] = [];
 pdl_admin_menu_apply_hidden();
-assert_same( [], $removed_menus, 'Super admins should keep full menu when the setting is disabled.' );
-assert_same( [], $removed_submenus, 'Super admins should keep full submenu when the setting is disabled.' );
+assert_same( [ 'tools.php' ], $removed_menus, 'Non-controller admins should still have hidden top-level menus removed, even if WordPress treats them as super admins.' );
+assert_same( [ [ 'options-general.php', 'options-permalink.php' ] ], $removed_submenus, 'Non-controller admins should still have hidden submenus removed, even if WordPress treats them as super admins.' );
 
 $GLOBALS['options']['pdl_admin_menu_settings'] = [
     'apply_to_super_admins' => true,
