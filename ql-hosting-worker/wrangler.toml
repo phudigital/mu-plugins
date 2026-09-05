@@ -1,0 +1,27 @@
+name = "ql-hosting-worker"
+main = "src/index.ts"
+compatibility_date = "2026-09-05"
+
+[[routes]]
+pattern = "hosting.pdl.vn"
+custom_domain = true
+
+[vars]
+APP_ORIGIN = "https://hosting.pdl.vn"
+TURNSTILE_SITE_KEY = "0x4AAAAAAElwX3Sma_XFYZb4"
+PBKDF2_ITERATIONS = "60000"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/brand.json", "/ql-hosting", "/ql-hosting/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qlhosting"
+database_id = "ebe514c4-51c5-4a2b-abff-5a18e35982f2"
+migrations_dir = "migrations"
+
+# Add only after PHP cron is disabled and production dry-run has been checked.
+# [triggers]
+# crons = ["0 0 * * *"]

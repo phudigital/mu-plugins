@@ -4,3 +4,7 @@ ql-hosting/config.php
 ql-hosting/data/settings.json
 ql-hosting/data/backups/
 ql-hosting/data/*.log
+ql-hosting-worker/node_modules/
+ql-hosting-worker/.wrangler/
+ql-hosting-worker/.dev.vars
+ql-hosting-worker/scripts/import.sql

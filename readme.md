@@ -46,14 +46,14 @@ wp-content/mu-plugins/
 
 ## Chức Năng Chính
 
-- `brand-widget`: thêm widget “Thông tin & Hỗ trợ - PDL” trong Dashboard, đọc dữ liệu từ `https://app.pdl.vn/ql-hosting/brand.json`.
+- `brand-widget`: thêm widget “Thông tin & Hỗ trợ - PDL” trong Dashboard, đọc dữ liệu từ `https://hosting.pdl.vn/brand.json`.
 - `login-branding`: tuỳ biến giao diện đăng nhập WordPress theo logo/site icon và thêm credit PDL.
 - `hide-login`: đổi URL đăng nhập mặc định sang `/dang-nhap/` và chặn truy cập trực tiếp `wp-login.php`/`wp-register.php`.
 - `admin-menu`: thêm trang **PDL Admin Menu** để user gốc cấu hình ẩn menu/submenu admin, có tùy chọn áp dụng hoặc bỏ qua với super admin.
 - `hidden-plugins`: thêm trang **PDL Hidden Plugins** để super admin cấu hình plugin cần ẩn khỏi trang Plugins của tài khoản thường.
 - `admin-utilities`: dọn thanh quản trị theo cấu hình mặc định, ẩn notice quản trị, tắt các widget Dashboard đã chọn, thêm thao tác **Sao chép** cho post/page/public post type và giới hạn upload chỉ cho phép hình ảnh nhỏ hơn 2MB.
 
-Phiên bản hiện tại: `1.3.1`.
+Phiên bản hiện tại: `1.4.0`.
 
 ## Cách Triển Khai Khuyên Dùng
 

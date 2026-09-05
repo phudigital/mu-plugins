@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PDL Solutions — Core Manager
  * Description: Bộ MU-plugin quản trị website khách hàng PDL: dashboard hỗ trợ, branding đăng nhập, đổi URL login, dọn admin, ẩn menu/plugin và sao chép nội dung.
- * Version: 1.3.9
+ * Version: 1.4.0
  * Author: Công Ty TNHH Giải Pháp PDL
  * Author URI: https://pdl.vn
  */
@@ -10,7 +10,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 define( 'PDL_MODULES_DIR', __DIR__ . '/pdl-modules/' );
-define( 'PDL_VERSION', '1.3.9' );
+define( 'PDL_VERSION', '1.4.0' );
 define( 'PDL_MODULE_ERRORS_OPTION', 'pdl_core_manager_module_errors' );
 
 function pdl_core_manager_admin_notice( $message, $type = 'warning' ) {

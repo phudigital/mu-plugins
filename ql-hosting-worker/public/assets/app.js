@@ -1,0 +1,896 @@
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+const state = {
+  setupRequired: false,
+  brand: null,
+  settings: null,
+  brandVersion: 0,
+  settingsVersion: 0,
+  turnstileToken: '',
+  dirty: false,
+  jsonDirty: false,
+};
+
+window.onTurnstileSuccess = (token) => {
+  state.turnstileToken = token;
+};
+
+window.onTurnstileExpired = () => {
+  state.turnstileToken = '';
+};
+
+function resetTurnstile() {
+  state.turnstileToken = '';
+  if (window.turnstile) window.turnstile.reset();
+}
+
+function api(action, body = undefined) {
+  const base = String(window.QLH_BASE || '').replace(/\/$/, '');
+  const options = {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+  };
+  if (body !== undefined) options.body = JSON.stringify(body);
+  return fetch(`${base}/api/${encodeURIComponent(action)}`, options)
+    .then(async (response) => {
+      const data = await response.json().catch(() => ({ ok: false, message: 'Không đọc được phản hồi API.' }));
+      if (!response.ok || data.ok === false) {
+        const error = new Error(data.message || 'Có lỗi xảy ra.');
+        error.status = response.status;
+        error.payload = data;
+        throw error;
+      }
+      return data;
+    });
+}
+
+function showAuth() {
+  $('#auth').hidden = false;
+  $('#app').hidden = true;
+}
+
+function showApp() {
+  $('#auth').hidden = true;
+  $('#app').hidden = false;
+}
+
+function setAuthBusy(busy, label = 'Tiếp tục') {
+  const button = $('#authForm button[type="submit"]');
+  button.disabled = busy;
+  button.textContent = busy ? 'Đang đăng nhập...' : label;
+}
+
+function saveButtonLabel(text) {
+  const label = $('#saveBtn span:last-child');
+  if (label) label.textContent = text;
+}
+
+function markDirty() {
+  if (state.dirty) return;
+  state.dirty = true;
+  document.body.classList.add('is-dirty');
+  saveButtonLabel('Lưu *');
+}
+
+function markSaved() {
+  state.dirty = false;
+  state.jsonDirty = false;
+  document.body.classList.remove('is-dirty');
+  saveButtonLabel('Lưu');
+}
+
+function toast(message, error = false) {
+  const notice = $('#notice');
+  notice.textContent = message;
+  notice.className = `notice${error ? ' error' : ''}`;
+  notice.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { notice.hidden = true; }, 4200);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[char]));
+}
+
+function today() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
+}
+
+function parseDateParts(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  let day;
+  let month;
+  let year;
+  let match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) {
+    [, day, month, year] = match;
+  } else {
+    match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    [, year, month, day] = match;
+  }
+
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (
+    Number.isNaN(date.getTime())
+    || date.getFullYear() !== Number(year)
+    || date.getMonth() !== Number(month) - 1
+    || date.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return { day: Number(day), month: Number(month), year: Number(year), date };
+}
+
+function toStorageDate(value) {
+  const parsed = parseDateParts(value);
+  if (!parsed) return '';
+  return `${String(parsed.year).padStart(4, '0')}-${String(parsed.month).padStart(2, '0')}-${String(parsed.day).padStart(2, '0')}`;
+}
+
+function toDisplayDate(value) {
+  const parsed = parseDateParts(value);
+  if (!parsed) return '';
+  return `${String(parsed.day).padStart(2, '0')}/${String(parsed.month).padStart(2, '0')}/${String(parsed.year).padStart(4, '0')}`;
+}
+
+function daysUntil(value) {
+  const parsed = parseDateParts(value);
+  if (!parsed) return null;
+  return Math.round((parsed.date - today()) / 86400000);
+}
+
+function monthKeyFromDate(value) {
+  const parsed = parseDateParts(value);
+  if (!parsed) return '';
+  return `${String(parsed.year).padStart(4, '0')}-${String(parsed.month).padStart(2, '0')}`;
+}
+
+function monthLabel(monthDate) {
+  return monthDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+}
+
+function monthShortLabel(monthDate) {
+  return `${String(monthDate.getMonth() + 1).padStart(2, '0')}/${monthDate.getFullYear()}`;
+}
+
+function monthStart(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function upcomingMonths(total = 12) {
+  const start = monthStart();
+  return Array.from({ length: total }, (_, index) => new Date(start.getFullYear(), start.getMonth() + index, 1));
+}
+
+function buildSchedule(total = 12) {
+  const months = upcomingMonths(total);
+  const groups = new Map(months.map((date) => [monthKeyFromDate(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`), {
+    key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+    label: monthLabel(date),
+    date,
+    items: [],
+  }]));
+
+  const overdue = [];
+  Object.entries(state.brand?.domains || {}).forEach(([domain, info]) => {
+    const parsed = parseDateParts(info.expire);
+    if (!parsed) return;
+    const item = { domain, info, days: daysUntil(info.expire), displayDate: toDisplayDate(info.expire) };
+    const key = `${String(parsed.year).padStart(4, '0')}-${String(parsed.month).padStart(2, '0')}`;
+    if (item.days < 0) {
+      overdue.push(item);
+    }
+    if (groups.has(key)) {
+      groups.get(key).items.push(item);
+    }
+  });
+
+  const list = Array.from(groups.values()).map((group) => ({
+    ...group,
+    items: group.items.sort((a, b) => (a.days ?? 0) - (b.days ?? 0) || a.domain.localeCompare(b.domain)),
+  }));
+
+  return {
+    months: list,
+    overdue: overdue.sort((a, b) => a.days - b.days),
+    max: Math.max(1, ...list.map((group) => group.items.length)),
+  };
+}
+
+function statusFor(info) {
+  const days = daysUntil(info.expire);
+  if (days === null) return { label: 'Chưa có hạn', className: '' };
+  if (days < 0) return { label: `Quá ${Math.abs(days)} ngày`, className: 'danger' };
+  if (days <= 14) return { label: `${days} ngày`, className: 'danger' };
+  if (days <= 30) return { label: `${days} ngày`, className: 'warn' };
+  return { label: `${days} ngày`, className: 'ok' };
+}
+
+function blankNotify() {
+  return { active: false, type: 'info', message: '', button_text: '', button_url: '' };
+}
+
+function blankDomain() {
+  return { expire: '', hosting_note: '', notify: blankNotify() };
+}
+
+const previewIcons = {
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 9.81 19.79 19.79 0 0 1 0 1.12 2 2 0 0 1 2 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+  web: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+};
+
+function normalizeText(value) {
+  return String(value || '').trim();
+}
+
+function safeUrl(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  try {
+    const url = new URL(text, window.location.origin);
+    return /^(https?:|mailto:|tel:)$/.test(url.protocol) ? url.href : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function previewIcon(contact) {
+  if (contact.phone) return previewIcons.phone;
+  if (contact.email) return previewIcons.mail;
+  return previewIcons.web;
+}
+
+function previewContactLink(contact) {
+  const display = normalizeText(contact.display || contact.phone || contact.email || contact.url);
+  let href = safeUrl(contact.link_url || '');
+  if (!href && contact.phone) href = safeUrl(`tel:${contact.phone}`);
+  if (!href && contact.email) href = safeUrl(`mailto:${contact.email}`);
+  if (!href && contact.url) href = safeUrl(contact.url);
+  if (!href) return escapeHtml(display);
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a>`;
+}
+
+function previewBarHtml(message, buttonText, buttonUrl) {
+  const safeButtonUrl = safeUrl(buttonUrl);
+  const button = buttonText && safeButtonUrl
+    ? `<a class="pw-bar-btn" href="${escapeHtml(safeButtonUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(buttonText)}</a>`
+    : '';
+  return `<div class="pw-bar-inner"><span class="pw-bar-text">${escapeHtml(message)}</span>${button}</div>`;
+}
+
+function renderPreviewBar(selector, type, message, buttonText = '', buttonUrl = '', domainBar = false) {
+  const bar = $(selector);
+  const text = normalizeText(message);
+  if (!bar || !text) {
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+  bar.className = `pw-bar ${type || 'info'}${domainBar ? ' pw-bar-domain' : ''}`;
+  bar.innerHTML = previewBarHtml(text, normalizeText(buttonText), buttonUrl);
+  bar.style.display = 'block';
+}
+
+function renderPreviewExpire(info) {
+  if (!info?.expire) {
+    renderPreviewBar('#previewExpire', 'info', '');
+    return;
+  }
+
+  const days = daysUntil(info.expire);
+  if (days === null) {
+    renderPreviewBar('#previewExpire', 'info', '');
+    return;
+  }
+
+  const note = info.hosting_note ? ` (${info.hosting_note})` : '';
+  let type = 'success';
+  let message = `Dịch vụ còn hạn đến ${toDisplayDate(info.expire)} (${days} ngày)${note}`;
+  if (days < 0) {
+    type = 'error';
+    message = `Hosting đã hết hạn ${Math.abs(days)} ngày trước${note}. Liên hệ PDL ngay!`;
+  } else if (days <= 14) {
+    type = 'error';
+    message = `Hosting hết hạn sau ${days} ngày - ${toDisplayDate(info.expire)}${note}`;
+  } else if (days <= 30) {
+    type = 'warning';
+    message = `Hosting sắp hết hạn sau ${days} ngày - ${toDisplayDate(info.expire)}${note}`;
+  }
+  renderPreviewBar('#previewExpire', type, message);
+}
+
+function renderWidgetPreview() {
+  const brand = state.brand || {};
+  const previewDomain = 'pdl.vn';
+  const websiteUrl = safeUrl(brand.website || 'https://pdl.vn') || 'https://pdl.vn';
+  const websiteLabel = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const updated = brand.updated_at ? ` &nbsp;·&nbsp; Cập nhật: ${toDisplayDate(brand.updated_at)}` : '';
+  const logo = normalizeText(brand.logo);
+  const site = brand.domains?.[previewDomain] || brand.domains?.[`www.${previewDomain}`] || null;
+  const contacts = Array.isArray(brand.contacts) ? brand.contacts : [];
+
+  $('#previewDomain').textContent = previewDomain;
+  $('#previewHead').innerHTML = `
+    <div class="pw-logo">${logo ? `<img src="${escapeHtml(logo)}" alt="PDL">` : '<span>PDL</span>'}</div>
+    <div>
+      <p class="pw-htitle">${escapeHtml(brand.company || 'Công Ty TNHH Giải Pháp PDL')}</p>
+      <p class="pw-hsub">${escapeHtml(brand.address || 'pdl.vn')}${updated}</p>
+    </div>
+  `;
+
+  if (brand.notify?.active) {
+    renderPreviewBar('#previewNotify', brand.notify.type || 'info', brand.notify.message, brand.notify.button_text, brand.notify.button_url);
+  } else {
+    renderPreviewBar('#previewNotify', 'info', '');
+  }
+
+  if (site?.notify?.active) {
+    renderPreviewBar('#previewSite', site.notify.type || 'info', site.notify.message, site.notify.button_text, site.notify.button_url, true);
+  } else {
+    renderPreviewBar('#previewSite', 'info', '');
+  }
+  renderPreviewExpire(site);
+
+  $('#previewGrid').innerHTML = contacts.length ? contacts.map((contact) => `
+    <div class="pw-card">
+      <div class="pw-icon">${previewIcon(contact)}</div>
+      <div>
+        <span class="pw-cl">${escapeHtml(contact.label || 'Liên hệ')}</span>
+        <p class="pw-cv">${previewContactLink(contact)}</p>
+      </div>
+    </div>
+  `).join('') : '<p class="pw-error">Không tải được dữ liệu. Liên hệ: <a href="tel:0901110008">0901 11 0008</a></p>';
+  $('#previewCopy').innerHTML = `&copy; ${new Date().getFullYear()} ${escapeHtml(brand.company || 'Công Ty TNHH Giải Pháp PDL')}`;
+  $('#previewLink').href = websiteUrl;
+  $('#previewLink').textContent = `${websiteLabel} →`;
+}
+
+function notifyEditorHtml(scope, notify = blankNotify()) {
+  return `
+    <h3>${scope === 'global' ? 'Thông báo chung' : 'Thông báo riêng'}</h3>
+    <div class="notify-grid">
+      <label class="checkline"><input data-nf="${scope}:active" type="checkbox" ${notify.active ? 'checked' : ''}><span>Bật</span></label>
+      <label><span>Loại</span>
+        <select data-nf="${scope}:type">
+          ${['info', 'warning', 'error', 'success'].map((type) => `<option value="${type}" ${notify.type === type ? 'selected' : ''}>${type}</option>`).join('')}
+        </select>
+      </label>
+      <label><span>Nội dung</span><input data-nf="${scope}:message" type="text" value="${escapeHtml(notify.message)}"></label>
+      <label><span>Nút bấm</span><input data-nf="${scope}:button_text" type="text" value="${escapeHtml(notify.button_text)}"></label>
+    </div>
+    <label><span>URL nút bấm</span><input data-nf="${scope}:button_url" type="url" value="${escapeHtml(notify.button_url)}"></label>
+  `;
+}
+
+function bindNotifyEditor(root, getNotify) {
+  $$('[data-nf]', root).forEach((input) => {
+    input.addEventListener('input', () => {
+      const [, key] = input.dataset.nf.split(':');
+      const notify = getNotify();
+      notify[key] = input.type === 'checkbox' ? input.checked : input.value;
+      markDirty();
+      syncJson();
+    });
+    input.addEventListener('change', () => {
+      const [, key] = input.dataset.nf.split(':');
+      const notify = getNotify();
+      notify[key] = input.type === 'checkbox' ? input.checked : input.value;
+      markDirty();
+      syncJson();
+      renderOverview();
+    });
+  });
+}
+
+function renderBrand() {
+  $$('[data-brand]').forEach((input) => {
+    const key = input.dataset.brand;
+    if (input.dataset.dateInput) {
+      input.value = toDisplayDate(state.brand[key]);
+      input.oninput = null;
+      input.onchange = () => {
+        const normalized = toStorageDate(input.value);
+        if (!normalized && input.value.trim() !== '') {
+          input.setCustomValidity('Nhập theo định dạng dd/mm/yyyy');
+          input.reportValidity();
+          return;
+        }
+        input.setCustomValidity('');
+        state.brand[key] = normalized;
+        input.value = toDisplayDate(normalized);
+        markDirty();
+        syncJson();
+      };
+      return;
+    }
+
+    input.value = state.brand[key] || '';
+    input.oninput = () => {
+      state.brand[key] = input.value;
+      markDirty();
+      syncJson();
+    };
+  });
+
+  const editor = $('[data-notify="global"]');
+  editor.innerHTML = notifyEditorHtml('global', state.brand.notify || blankNotify());
+  bindNotifyEditor(editor, () => state.brand.notify);
+}
+
+function renderDomains() {
+  const list = $('#domainList');
+  const query = $('#domainSearch').value.trim().toLowerCase();
+  const entries = Object.entries(state.brand.domains || {})
+    .filter(([domain]) => !query || domain.toLowerCase().includes(query))
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  list.innerHTML = entries.length ? entries.map(([domain, info]) => {
+    const status = statusFor(info);
+    return `
+      <article class="domain-row" data-domain="${escapeHtml(domain)}">
+        <button class="domain-summary" type="button">
+          <span>
+            <span class="domain-name">${escapeHtml(domain)}</span>
+            <span class="domain-meta">${escapeHtml(toDisplayDate(info.expire) || 'Chưa có ngày hết hạn')}${info.hosting_note ? ` · ${escapeHtml(info.hosting_note)}` : ''}</span>
+          </span>
+          <span class="status ${status.className}">${escapeHtml(status.label)}</span>
+        </button>
+        <div class="domain-editor">
+          <div class="form-grid">
+            <label><span>Domain</span><input data-domain-field="name" type="text" value="${escapeHtml(domain)}"></label>
+            <label><span>Ngày hết hạn</span><input data-domain-field="expire" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" value="${escapeHtml(toDisplayDate(info.expire))}"></label>
+            <label><span>Ghi chú hosting</span><input data-domain-field="hosting_note" type="text" value="${escapeHtml(info.hosting_note)}"></label>
+            <label><span>&nbsp;</span><button class="danger-btn" data-remove-domain type="button">Xóa domain</button></label>
+          </div>
+          <div class="notify-editor">${notifyEditorHtml(domain, info.notify || blankNotify())}</div>
+        </div>
+      </article>
+    `;
+  }).join('') : '<p class="empty">Không có domain phù hợp.</p>';
+
+  $$('.domain-row', list).forEach((row) => {
+    const domain = row.dataset.domain;
+    $('.domain-summary', row).addEventListener('click', () => row.classList.toggle('open'));
+    $('[data-remove-domain]', row).addEventListener('click', () => {
+      if (!confirm(`Xóa ${domain}?`)) return;
+      delete state.brand.domains[domain];
+      markDirty();
+      renderAll();
+      syncJson();
+    });
+
+    $$('[data-domain-field]', row).forEach((input) => {
+      input.addEventListener('change', () => {
+        const field = input.dataset.domainField;
+        if (field === 'name') {
+          const next = input.value.trim().toLowerCase();
+          if (!next || next === domain) return;
+          state.brand.domains[next] = state.brand.domains[domain] || blankDomain();
+          delete state.brand.domains[domain];
+          markDirty();
+          renderAll();
+        } else if (field === 'expire') {
+          const normalized = toStorageDate(input.value);
+          if (!normalized && input.value.trim() !== '') {
+            input.setCustomValidity('Nhập theo định dạng dd/mm/yyyy');
+            input.reportValidity();
+            return;
+          }
+          input.setCustomValidity('');
+          state.brand.domains[domain][field] = normalized;
+          input.value = toDisplayDate(normalized);
+          markDirty();
+          renderOverview();
+          renderCalendar();
+          syncJson();
+        } else {
+          state.brand.domains[domain][field] = input.value;
+          markDirty();
+          renderOverview();
+          renderCalendar();
+          syncJson();
+        }
+      });
+      input.addEventListener('input', () => {
+        const field = input.dataset.domainField;
+        if (field !== 'name' && field !== 'expire') state.brand.domains[domain][field] = input.value;
+        if (field !== 'name') markDirty();
+        syncJson();
+      });
+    });
+
+    bindNotifyEditor($('.notify-editor', row), () => {
+      state.brand.domains[domain].notify = state.brand.domains[domain].notify || blankNotify();
+      return state.brand.domains[domain].notify;
+    });
+  });
+}
+
+function renderContacts() {
+  const list = $('#contactList');
+  const contacts = state.brand.contacts || [];
+  list.innerHTML = contacts.length ? contacts.map((contact, index) => `
+    <article class="contact-row" data-contact="${index}">
+      <label><span>Nhãn</span><input data-contact-field="label" type="text" value="${escapeHtml(contact.label)}"></label>
+      <label><span>Điện thoại</span><input data-contact-field="phone" type="text" value="${escapeHtml(contact.phone || '')}"></label>
+      <label><span>Hiển thị</span><input data-contact-field="display" type="text" value="${escapeHtml(contact.display || '')}"></label>
+      <label><span>Email</span><input data-contact-field="email" type="email" value="${escapeHtml(contact.email || '')}"></label>
+      <label><span>URL</span><input data-contact-field="url" type="url" value="${escapeHtml(contact.url || '')}"></label>
+      <label><span>Link</span><input data-contact-field="link_url" type="text" value="${escapeHtml(contact.link_url || '')}"></label>
+      <button class="danger-btn" data-remove-contact type="button">Xóa</button>
+    </article>
+  `).join('') : '<p class="empty">Chưa có liên hệ.</p>';
+
+  $$('.contact-row', list).forEach((row) => {
+    const index = Number(row.dataset.contact);
+    $$('[data-contact-field]', row).forEach((input) => {
+      input.addEventListener('input', () => {
+        const field = input.dataset.contactField;
+        const contact = contacts[index];
+        contact[field] = input.value;
+        markDirty();
+        syncJson();
+      });
+    });
+    $('[data-remove-contact]', row).addEventListener('click', () => {
+      contacts.splice(index, 1);
+      markDirty();
+      renderContacts();
+      syncJson();
+    });
+  });
+}
+
+function renderCalendar() {
+  const schedule = buildSchedule(12);
+  $('#monthPreview').innerHTML = schedule.months.map((month) => `
+    <article class="month-card">
+      <div>
+        <strong>${escapeHtml(monthShortLabel(month.date))}</strong>
+        <small>${month.items.length}</small>
+      </div>
+      <div class="month-bar"><span style="width:${month.items.length ? Math.max(10, (month.items.length / schedule.max) * 100) : 0}%"></span></div>
+    </article>
+  `).join('');
+
+  $('#monthSchedule').innerHTML = `
+    ${schedule.overdue.length ? `
+      <section class="month-panel">
+        <div class="month-panel-head">
+          <strong>Đã quá hạn</strong>
+          <span class="status danger">${schedule.overdue.length} dịch vụ</span>
+        </div>
+        <div class="schedule-list">
+          ${schedule.overdue.map((item) => `
+            <article class="schedule-item">
+              <div>
+                <strong>${escapeHtml(item.domain)}</strong>
+                <p class="muted">${escapeHtml(item.displayDate)}${item.info.hosting_note ? ` · ${escapeHtml(item.info.hosting_note)}` : ''}</p>
+              </div>
+              <span class="status danger">Quá ${Math.abs(item.days)} ngày</span>
+            </article>
+          `).join('')}
+        </div>
+      </section>
+    ` : ''}
+    ${schedule.months.map((month) => `
+      <section class="month-panel">
+        <div class="month-panel-head">
+          <strong>${escapeHtml(monthShortLabel(month.date))}</strong>
+          <span class="status ${month.items.length ? 'warn' : ''}">${month.items.length} dịch vụ</span>
+        </div>
+        ${month.items.length ? `
+          <div class="schedule-list">
+            ${month.items.map((item) => {
+              const status = statusFor(item.info);
+              return `
+                <article class="schedule-item">
+                  <div>
+                    <strong>${escapeHtml(item.domain)}</strong>
+                    <p class="muted">${escapeHtml(item.displayDate)}${item.info.hosting_note ? ` · ${escapeHtml(item.info.hosting_note)}` : ''}</p>
+                  </div>
+                  <span class="status ${status.className}">${escapeHtml(status.label)}</span>
+                </article>
+              `;
+            }).join('')}
+          </div>
+        ` : '<p class="empty">Tháng này chưa có dịch vụ đến hạn.</p>'}
+      </section>
+    `).join('')}
+  `;
+}
+
+function renderTelegram() {
+  const settings = state.settings || {};
+  $('#tgEnabled').checked = !!settings.telegram?.enabled;
+  $('#tgToken').placeholder = settings.telegram?.bot_token_masked || 'Để trống nếu không đổi';
+  $('#tgChatId').value = settings.telegram?.chat_id || '';
+  $('#reminderDays').value = (settings.reminders?.days || [30, 14, 7, 3, 1, 0]).join(',');
+  $('#repeatAfter').value = settings.reminders?.repeat_after_days || 1;
+  $('#notifyOverdue').checked = settings.reminders?.notify_overdue !== false;
+  $('#adminUsername').value = settings.username || 'phudigital';
+  const lastRun = settings.last_run?.started_at ? ` · Lần chạy gần nhất: ${settings.last_run.started_at}` : '';
+  $('#cronHint').textContent = `Cloudflare Cron trên ${location.host}: 07:00 Asia/Ho_Chi_Minh khi bật${lastRun}`;
+}
+
+function renderOverview() {
+  const domains = Object.entries(state.brand?.domains || {});
+  const attention = domains
+    .map(([domain, info]) => ({ domain, info, days: daysUntil(info.expire) }))
+    .filter((row) => row.days !== null && row.days <= 30)
+    .sort((a, b) => a.days - b.days);
+  const schedule = buildSchedule(12);
+  const peakMonth = schedule.months.reduce((best, month) => (month.items.length > best.items.length ? month : best), schedule.months[0] || { date: new Date(), items: [] });
+  const notifyText = state.brand?.notify?.active
+    ? (state.brand.notify.message || state.brand.notify.button_text || 'Đang bật')
+    : 'Đang tắt';
+
+  renderWidgetPreview();
+  $('#heroFile').textContent = `D1 v${state.brandVersion || 1}`;
+  $('#heroNotify').textContent = notifyText;
+  $('#heroPeakMonth').textContent = peakMonth?.items?.length ? monthShortLabel(peakMonth.date) : 'Chưa có';
+
+  $('#totalDomains').textContent = domains.length;
+  $('#nearExpiry').textContent = attention.filter((row) => row.days >= 0).length;
+  $('#expiredDomains').textContent = attention.filter((row) => row.days < 0).length;
+  $('#attentionList').innerHTML = attention.length ? attention.map((row) => {
+    const status = statusFor(row.info);
+    return `
+      <article class="attention-item">
+        <div><strong>${escapeHtml(row.domain)}</strong><p class="muted">${escapeHtml(toDisplayDate(row.info.expire))}${row.info.hosting_note ? ` · ${escapeHtml(row.info.hosting_note)}` : ''}</p></div>
+        <span class="status ${status.className}">${escapeHtml(status.label)}</span>
+      </article>
+    `;
+  }).join('') : '<p class="empty">Không có dịch vụ nào hết hạn trong 30 ngày.</p>';
+}
+
+function syncJson() {
+  $('#jsonEditor').value = JSON.stringify(state.brand, null, 2);
+}
+
+function renderAll() {
+  renderOverview();
+  renderCalendar();
+  renderBrand();
+  renderDomains();
+  renderContacts();
+  renderTelegram();
+  syncJson();
+}
+
+function parseJsonEditor() {
+  try {
+    state.brand = JSON.parse($('#jsonEditor').value);
+    state.jsonDirty = false;
+    renderAll();
+    toast('Đã cập nhật dữ liệu từ JSON editor.');
+    return true;
+  } catch (error) {
+    toast(`JSON lỗi: ${error.message}`, true);
+    return false;
+  }
+}
+
+async function loadData() {
+  try {
+    const data = await api('data');
+    state.brand = data.brand;
+    state.settings = data.settings;
+    state.brandVersion = data.brand_version;
+    state.settingsVersion = data.settings_version;
+    $('#sessionLabel').textContent = `Đăng nhập: ${data.settings.username || 'phudigital'} · hosting.pdl.vn/brand.json`;
+    showApp();
+    renderAll();
+    markSaved();
+  } catch (error) {
+    if (error.status === 401 || error.payload?.setup_required) {
+      showAuth();
+    } else {
+      showApp();
+      toast(error.message, true);
+    }
+    throw error;
+  }
+}
+
+function wireTabs() {
+  $$('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      $$('.tab').forEach((item) => item.classList.toggle('active', item === tab));
+      $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === tab.dataset.tab));
+    });
+  });
+}
+
+function wireActions() {
+  $('#authForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const action = state.setupRequired ? 'setup' : 'login';
+    setAuthBusy(true, state.setupRequired ? 'Tạo tài khoản' : 'Tiếp tục');
+    try {
+      if (!state.turnstileToken) {
+        toast('Vui lòng hoàn tất Turnstile trước khi tiếp tục.', true);
+        return;
+      }
+      await api(action, {
+        username: $('#authUsername').value.trim(),
+        password: $('#authPassword').value,
+        bootstrap_secret: $('#bootstrapSecret')?.value || '',
+        cf_turnstile_response: state.turnstileToken,
+      });
+      showApp();
+      $('#sessionLabel').textContent = `Đăng nhập: ${$('#authUsername').value.trim().toLowerCase()} · Đang tải dữ liệu...`;
+      $('#authPassword').value = '';
+      await loadData();
+    } catch (error) {
+      showAuth();
+      toast(error.message, true);
+      resetTurnstile();
+    } finally {
+      setAuthBusy(false, state.setupRequired ? 'Tạo tài khoản' : 'Tiếp tục');
+    }
+  });
+
+  $('#logoutBtn').addEventListener('click', async () => {
+    try {
+      await api('logout', {});
+    } finally {
+      showAuth();
+      $('#authPassword').value = '';
+      toast('Đã đăng xuất.');
+    }
+  });
+
+  $('#saveBtn').addEventListener('click', async () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    if (state.jsonDirty || $('.tab.active')?.dataset.tab === 'json') {
+      if (!parseJsonEditor()) return;
+    }
+    $('#saveBtn').disabled = true;
+    try {
+      const result = await api('save-brand', { brand: state.brand, version: state.brandVersion });
+      state.brand = result.brand;
+      state.brandVersion = result.version;
+      await saveSettings();
+      renderAll();
+      markSaved();
+      toast('Đã lưu brand.json và cài đặt.');
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      $('#saveBtn').disabled = false;
+    }
+  });
+
+  $('#refreshBtn').addEventListener('click', loadData);
+  $('#jumpDomainsBtn').addEventListener('click', () => $('.tab[data-tab="domains"]')?.click());
+  $('#jumpTelegramBtn').addEventListener('click', () => $('.tab[data-tab="telegram"]')?.click());
+  $('#scheduleToggle').addEventListener('click', () => {
+    const panel = $('#schedulePanel');
+    const expanded = $('#scheduleToggle').getAttribute('aria-expanded') === 'true';
+    $('#scheduleToggle').setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    panel.hidden = expanded;
+  });
+  $('#domainSearch').addEventListener('input', renderDomains);
+  $('#jsonEditor').addEventListener('input', () => {
+    state.jsonDirty = true;
+    markDirty();
+  });
+  ['tgEnabled', 'tgToken', 'tgChatId', 'reminderDays', 'repeatAfter', 'notifyOverdue', 'adminUsername', 'newPassword'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', markDirty);
+    el.addEventListener('change', markDirty);
+  });
+  $('#formatJsonBtn').addEventListener('click', () => {
+    if (parseJsonEditor()) markDirty();
+  });
+
+  $('#addDomainBtn').addEventListener('click', () => {
+    const domain = prompt('Nhập domain mới');
+    if (!domain) return;
+    state.brand.domains[domain.trim().toLowerCase()] = blankDomain();
+    markDirty();
+    renderAll();
+    syncJson();
+  });
+
+  $('#addContactBtn').addEventListener('click', () => {
+    state.brand.contacts = state.brand.contacts || [];
+    state.brand.contacts.push({ label: '', phone: '', display: '', link_url: '' });
+    markDirty();
+    renderContacts();
+    syncJson();
+  });
+
+  $('#testTelegramBtn').addEventListener('click', async () => {
+    try {
+      const result = await api('test-telegram', {});
+      toast(result.message || 'Đã gửi thử Telegram.');
+    } catch (error) {
+      toast(error.message, true);
+    }
+  });
+
+  $('#dryRunBtn').addEventListener('click', async () => {
+    try {
+      const result = await api('run-reminders', { dry_run: true });
+      const sent = result.sent?.length ? result.sent.join(', ') : 'không có domain cần nhắc';
+      toast(`Kiểm tra xong: ${sent}.`);
+    } catch (error) {
+      toast(error.message, true);
+    }
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      $('#saveBtn').click();
+    }
+  });
+
+  window.addEventListener('beforeunload', (event) => {
+    if (!state.dirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+}
+
+async function saveSettings() {
+  const token = $('#tgToken').value.trim();
+  const settings = {
+    username: $('#adminUsername').value.trim(),
+    telegram: {
+      enabled: $('#tgEnabled').checked,
+      chat_id: $('#tgChatId').value.trim(),
+    },
+    reminders: {
+      days: $('#reminderDays').value.split(',').map((value) => Number(value.trim())).filter((value) => Number.isFinite(value)),
+      notify_overdue: $('#notifyOverdue').checked,
+      repeat_after_days: Number($('#repeatAfter').value || 1),
+    },
+    new_password: $('#newPassword').value,
+  };
+  if (token) settings.telegram.bot_token = token;
+  const result = await api('save-settings', { settings, version: state.settingsVersion });
+  state.settings = result.settings;
+  state.settingsVersion = result.version;
+  $('#tgToken').value = '';
+  $('#newPassword').value = '';
+  renderTelegram();
+}
+
+async function boot() {
+  wireTabs();
+  wireActions();
+  try {
+    const status = await api('status');
+    state.setupRequired = !!status.setup_required;
+    $('#bootstrapSecretWrap').hidden = !state.setupRequired;
+    if (status.authenticated) {
+      await loadData();
+    } else {
+      showAuth();
+      $('#authCopy').textContent = state.setupRequired
+        ? 'Tạo tài khoản quản trị đầu tiên cho hosting.pdl.vn.'
+        : 'Đăng nhập để cập nhật brand.json và lịch nhắc Telegram.';
+    }
+  } catch (error) {
+    showAuth();
+    toast(error.message, true);
+  }
+}
+
+boot();
