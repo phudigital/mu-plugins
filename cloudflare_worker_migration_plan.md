@@ -1,6 +1,6 @@
 # Kế hoạch chuyển QL Hosting sang Cloudflare Workers
 
-Cập nhật: 05/09/2026. Trạng thái: đã triển khai Worker production và D1 tại `hosting.pdl.vn`; Turnstile secret, ADMIN_PASSWORD, tắt cron PHP và bật cron Worker vẫn chờ hoàn tất trước khi mở vận hành đầy đủ.
+Cập nhật: 05/09/2026. Trạng thái: đã triển khai Worker production, D1 và Secrets đăng nhập tại `hosting.pdl.vn`; tắt cron PHP và bật cron Worker vẫn chờ hoàn tất trước khi mở vận hành đầy đủ.
 
 ## 1. Mục tiêu và phạm vi
 
@@ -248,7 +248,9 @@ Chưa gồm admin API, bot/retry và tải khác trên tài khoản. 26 domain t
 
 - D1 `qlhosting` (`ebe514c4-51c5-4a2b-abff-5a18e35982f2`) đã chạy migration `0001_initial.sql` và import brand/settings không chứa password hash hoặc Telegram token.
 - Worker `ql-hosting-worker` đã deploy version `8758cd4b-0d99-415c-bb6d-1df9dfc18317` với custom domain `hosting.pdl.vn`; Static Assets upload 4 file, bundle 98,13 KiB (gzip 24,31 KiB).
-- Bản Worker auth cố định tài khoản `phudigital` đã deploy với version `e5d0fdf0-6e0a-4f19-a1b5-3712372a098a`. Đã đặt `JWT_SECRET` và `SETTINGS_ENCRYPTION_KEY` bằng Worker Secrets. Chưa đặt `TURNSTILE_SECRET_KEY` và `ADMIN_PASSWORD`, nên login cố ý fail-closed cho tới khi bổ sung.
+- Bản Worker auth cố định tài khoản `phudigital` ban đầu deploy với version `e5d0fdf0-6e0a-4f19-a1b5-3712372a098a`. Cả `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `TURNSTILE_SECRET_KEY` và `ADMIN_PASSWORD` đã được lưu. Sự cố đăng nhập do version chứa `ADMIN_PASSWORD` mới chỉ được lưu; đã deploy version `6784411b-2cb8-40f6-91e0-f6a04aed554b` ở 100% traffic để kích hoạt.
+- Đã kiểm tra widget Turnstile cho phép `pdl.vn`; trình duyệt tại `hosting.pdl.vn` nhận token thành công và server chuyển qua bước kiểm tra mật khẩu. D1 đọc được brand/settings hợp lệ. Bản sửa bổ sung thông báo ngay trong form, xử lý token hết hạn/sai hostname/lỗi dịch vụ và cookie hỏng; test login→dashboard→logout dùng Worker/D1 cục bộ.
+- Bản sửa đã deploy version `69744bd8-8f2f-41aa-aacd-35595d09bf84`, có đủ 4 Secrets; 19 test cục bộ đạt. Production đã ghi nhận auth singleton `phudigital`; token sai trả `400`, cookie hỏng được xử lý như chưa đăng nhập.
 - Kiểm tra live: `/` trả HTML Turnstile, `/brand.json` trả JSON public có cache headers, `/api/status` trả đúng site key, `/ql-hosting` redirect 308 về `/`.
 
 ### Rollback

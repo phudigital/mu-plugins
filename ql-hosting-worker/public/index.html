@@ -14,7 +14,6 @@
     <link rel="icon" href="/assets/pdl-logo.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/pdl-logo.png">
     <link rel="stylesheet" href="/assets/app.css">
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
     <div id="auth" class="auth-shell">
@@ -34,11 +33,12 @@
                 </label>
                 <label>
                     <span>Mật khẩu</span>
-                    <input id="authPassword" type="password" minlength="8" autocomplete="current-password" required>
+                    <input id="authPassword" type="password" autocomplete="current-password" required>
                 </label>
                 <div class="turnstile-slot">
-                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAElwX3Sma_XFYZb4" data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-error-callback="onTurnstileExpired"></div>
+                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAElwX3Sma_XFYZb4" data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-error-callback="onTurnstileError" data-timeout-callback="onTurnstileExpired"></div>
                 </div>
+                <div id="authNotice" class="notice" role="alert" hidden></div>
                 <button class="primary" type="submit">Tiếp tục</button>
             </form>
         </section>
@@ -241,5 +241,6 @@
 
     <script>window.QLH_BASE = "";</script>
     <script src="/assets/app.js" defer></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
 </body>
 </html>

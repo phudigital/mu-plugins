@@ -75,11 +75,13 @@ export async function verifySession(env: Env, token: string): Promise<Record<str
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [header, body, signature] = parts;
-  const ok = await crypto.subtle.verify("HMAC", await hmacKey(env.JWT_SECRET), toArrayBuffer(base64UrlDecode(signature)), encoder.encode(`${header}.${body}`));
-  if (!ok) return null;
   try {
+    const ok = await crypto.subtle.verify("HMAC", await hmacKey(env.JWT_SECRET), toArrayBuffer(base64UrlDecode(signature)), encoder.encode(`${header}.${body}`));
+    if (!ok) return null;
+    const decodedHeader = JSON.parse(decoder.decode(base64UrlDecode(header)));
+    if (decodedHeader.alg !== "HS256" || decodedHeader.typ !== "JWT") return null;
     const decoded = JSON.parse(decoder.decode(base64UrlDecode(body))) as Record<string, unknown>;
-    if (decoded.exp && Number(decoded.exp) < Math.floor(Date.now() / 1000)) return null;
+    if (typeof decoded.exp !== "number" || !Number.isFinite(decoded.exp) || decoded.exp <= Math.floor(Date.now() / 1000)) return null;
     if (decoded.iss !== "ql-hosting-worker" || decoded.aud !== "hosting.pdl.vn") return null;
     return decoded;
   } catch {

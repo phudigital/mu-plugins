@@ -5,7 +5,7 @@ import { decryptSecret, encryptSecret, maskSecret, signSession, verifySession } 
 import { defaultSettings, normalizeBrand, normalizeSettings, normalizeUsername } from "./services/normalize";
 import { runReminders, sendTelegramText } from "./services/reminders";
 import { bumpAuthVersion, createAuthState, getAuthState, getBrand, getSettings, saveBrand, saveSettings, updateAuthState } from "./services/storage";
-import { verifyTurnstile } from "./services/turnstile";
+import { TurnstileError, verifyTurnstile } from "./services/turnstile";
 import type { Env, PublicSettings } from "./services/types";
 
 type Variables = {
@@ -182,8 +182,9 @@ app.get("/api/status", async (c) => {
 });
 
 app.post("/api/login", async (c) => {
-  if (!c.env.ADMIN_PASSWORD) {
-    const error = new Error("Chưa cấu hình ADMIN_PASSWORD.");
+  if (!c.env.ADMIN_PASSWORD || !c.env.JWT_SECRET) {
+    const missingSecret = !c.env.ADMIN_PASSWORD ? "ADMIN_PASSWORD" : "JWT_SECRET";
+    const error = new Error(`Chưa cấu hình ${missingSecret} trên version đang chạy. Cần thêm Secret và deploy version mới.`);
     error.name = "ConfigMissing";
     throw error;
   }
@@ -196,7 +197,7 @@ app.post("/api/login", async (c) => {
   }
   let auth = await getAuthState(c.env);
   if (!auth) {
-    auth = await createAuthState(c.env, username, c.env.ADMIN_PASSWORD);
+    auth = await createAuthState(c.env, username, password) || await getAuthState(c.env);
   } else if (auth.username !== username) {
     auth = await updateAuthState(c.env, username);
   }
@@ -302,6 +303,9 @@ app.get("/brand.json", async (c) => {
 app.notFound((c) => json({ ok: false, message: "Không tìm thấy." }, 404));
 
 app.onError((error) => {
+  if (error instanceof TurnstileError) {
+    return json({ ok: false, message: error.message, code: error.code }, error.status);
+  }
   const status = error.name === "PayloadTooLarge" ? 413 : error.name === "BadJson" ? 400 : error.name === "ConfigMissing" ? 503 : 500;
   return json({ ok: false, message: error.message || "Có lỗi xảy ra." }, status);
 });

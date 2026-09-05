@@ -17,6 +17,12 @@ window.onTurnstileSuccess = (token) => {
 
 window.onTurnstileExpired = () => {
   state.turnstileToken = '';
+  if (!$('#auth').hidden) toast('Xác minh Turnstile đã hết hạn. Vui lòng xác minh lại.', true);
+};
+
+window.onTurnstileError = (code) => {
+  state.turnstileToken = '';
+  if (!$('#auth').hidden) toast(`Không thể xác minh Turnstile${code ? ` (mã ${code})` : ''}. Vui lòng tải lại trang hoặc kiểm tra trình chặn nội dung.`, true);
 };
 
 function resetTurnstile() {
@@ -52,6 +58,7 @@ function showAuth() {
 
 function showApp() {
   $('#auth').hidden = true;
+  $('#authNotice').hidden = true;
   $('#app').hidden = false;
 }
 
@@ -81,12 +88,13 @@ function markSaved() {
 }
 
 function toast(message, error = false) {
-  const notice = $('#notice');
+  const isAuth = !$('#auth').hidden;
+  const notice = $(isAuth ? '#authNotice' : '#notice');
   notice.textContent = message;
   notice.className = `notice${error ? ' error' : ''}`;
   notice.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { notice.hidden = true; }, 4200);
+  if (!isAuth) toast.timer = setTimeout(() => { notice.hidden = true; }, 4200);
 }
 
 function escapeHtml(value) {
@@ -687,14 +695,13 @@ async function loadData() {
     state.brandVersion = data.brand_version;
     state.settingsVersion = data.settings_version;
     $('#sessionLabel').textContent = `Đăng nhập: ${data.settings.username || 'phudigital'} · hosting.pdl.vn/brand.json`;
-    showApp();
     renderAll();
     markSaved();
+    showApp();
   } catch (error) {
     if (error.status === 401) {
       showAuth();
     } else {
-      showApp();
       toast(error.message, true);
     }
     throw error;
@@ -713,21 +720,21 @@ function wireTabs() {
 function wireActions() {
   $('#authForm').addEventListener('submit', async (event) => {
     event.preventDefault();
+    $('#authNotice').hidden = true;
     setAuthBusy(true, 'Đang đăng nhập...');
     try {
-      if (!state.turnstileToken) {
+      const turnstileToken = state.turnstileToken || $('#authForm [name="cf-turnstile-response"]')?.value || '';
+      if (!turnstileToken) {
         toast('Vui lòng hoàn tất Turnstile trước khi tiếp tục.', true);
         return;
       }
       await api('login', {
         username: $('#authUsername').value.trim(),
         password: $('#authPassword').value,
-        cf_turnstile_response: state.turnstileToken,
+        cf_turnstile_response: turnstileToken,
       });
-      showApp();
-      $('#sessionLabel').textContent = `Đăng nhập: ${$('#authUsername').value.trim().toLowerCase()} · Đang tải dữ liệu...`;
-      $('#authPassword').value = '';
       await loadData();
+      $('#authPassword').value = '';
     } catch (error) {
       showAuth();
       toast(error.message, true);
