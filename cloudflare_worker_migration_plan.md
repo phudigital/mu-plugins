@@ -1,6 +1,6 @@
 # Kế hoạch chuyển QL Hosting sang Cloudflare Workers
 
-Cập nhật: 05/09/2026. Trạng thái: đã triển khai Worker production và D1 tại `hosting.pdl.vn`; Turnstile secret, bootstrap, tắt cron PHP và bật cron Worker vẫn chờ hoàn tất trước khi mở vận hành đầy đủ.
+Cập nhật: 05/09/2026. Trạng thái: đã triển khai Worker production và D1 tại `hosting.pdl.vn`; Turnstile secret, ADMIN_PASSWORD, tắt cron PHP và bật cron Worker vẫn chờ hoàn tất trước khi mở vận hành đầy đủ.
 
 ## 1. Mục tiêu và phạm vi
 
@@ -10,7 +10,7 @@ Chuyển `ql-hosting` từ `https://app.pdl.vn/ql-hosting` sang **domain root `h
 - URL public mới là `https://hosting.pdl.vn/brand.json`; cấu trúc JSON giữ nguyên để MU-plugin đổi endpoint mà không đổi parser.
 - Admin mới là `https://hosting.pdl.vn/`; API mới là `https://hosting.pdl.vn/api/*`.
 - URL cũ `https://app.pdl.vn/ql-hosting/brand.json` cần được redirect/alias trong giai đoạn chuyển tiếp hoặc cập nhật toàn bộ consumer trước cutover.
-- Thêm Cloudflare Turnstile cho login/setup. Site key public: `0x4AAAAAAElwX3Sma_XFYZb4`; `TURNSTILE_SECRET_KEY` tạo bằng Worker Secret sau, không commit vào repo.
+- Thêm Cloudflare Turnstile cho login. Site key public: `0x4AAAAAAElwX3Sma_XFYZb4`; `TURNSTILE_SECRET_KEY` tạo bằng Worker Secret sau, không commit vào repo.
 - Cron hằng ngày nằm trong cùng Worker. Giai đoạn đầu không thêm KV, R2, Durable Objects hoặc Queues.
 - Tạo thư mục `ql-hosting-worker/` riêng, giữ PHP để đối chiếu/rollback và giữ các thay đổi có sẵn trong checkout.
 - Không thay đổi module WordPress khác. Đây là chuyển ứng dụng quản trị, không di chuyển website/hosting khách hàng sang Workers.
@@ -37,7 +37,7 @@ Widget ── /brand.json ── Cache API ── D1 khi cache miss
 Scheduled event ── cùng Worker ── D1 nhận quyền gửi ── Telegram
 ```
 
-Chọn D1 để có cập nhật có điều kiện, khóa duy nhất và giao dịch batch. KV có eventual consistency và thiếu giao dịch nguyên tử, làm phức tạp bootstrap, lưu đồng thời và chống gửi trùng. Với dữ liệu hiện tại, dung lượng không phải nút thắt. [D1 batch][d1-api], [KV consistency][kv-consistency].
+Chọn D1 để có cập nhật có điều kiện, khóa duy nhất và giao dịch batch. KV có eventual consistency và thiếu giao dịch nguyên tử, làm phức tạp lưu đồng thời và chống gửi trùng. Với dữ liệu hiện tại, dung lượng không phải nút thắt. [D1 batch][d1-api], [KV consistency][kv-consistency].
 
 | Bảng | Dữ liệu và ràng buộc |
 |---|---|
@@ -113,17 +113,17 @@ migrations_dir = "migrations"
 - Logo quản trị giữ trong Static Assets. Có thể giữ `brand.logo` cũ; nếu đổi sang ảnh ở Worker, dùng URL HTTPS tuyệt đối để widget trên domain khác tải đúng.
 - Thay PHP `filemtime()` bằng version/hash asset khi build. Không cache vô hạn một tên file có nội dung thay đổi.
 
-## 4. Authentication và bootstrap
+## 4. Authentication
 
 Giữ username/password, Turnstile và JWT trong HttpOnly Cookie. Phải đo runtime trước khi chốt khả năng chạy hoàn toàn Free.
 
-1. **Bootstrap có khóa:** `/api/setup` yêu cầu bootstrap secret riêng trong body qua form setup, không qua URL. Chỉ tạo khi chưa có auth; insert singleton nguyên tử để hai request đồng thời chỉ một thành công. UI yêu cầu nhập secret, không nhúng trong JS. Xóa secret và đóng setup sau khởi tạo.
-2. **Turnstile:** login/setup gửi token từ widget site key `0x4AAAAAAElwX3Sma_XFYZb4`; Worker xác minh server-side bằng `TURNSTILE_SECRET_KEY` tại Siteverify. Nếu secret chưa cấu hình, login/setup phải báo lỗi cấu hình, không bỏ qua kiểm tra. [Turnstile verify][turnstile-verify].
-3. **Hash cũ:** chọn verify PHP hash đã kiểm chứng hoặc reset chủ động qua bootstrap được bảo vệ trước public. Hash không tương thích, DB lỗi hoặc thiếu dữ liệu bất ngờ phải báo lỗi phục hồi; không tự mở lại setup.
-4. **Password KDF:** chọn thuật toán phù hợp qua Web Crypto, salt ngẫu nhiên và tham số lưu cùng hash. Không dùng SHA-256 đơn thuần, không giảm độ mạnh để vừa quota. Benchmark login/setup/đổi mật khẩu trên Worker Free thật; không mặc định bcryptjs dưới 10 ms CPU. Nếu không đáp ứng, chưa cutover; đưa ra phương án Access hoặc Workers Paid cùng thay đổi trải nghiệm/chi phí để chốt. [Web Crypto][web-crypto], [Workers limits][workers-limits].
+1. **Tài khoản cố định:** username là `phudigital` từ `ADMIN_USERNAME` trong Worker vars; mật khẩu là `ADMIN_PASSWORD` trong Worker Secret. Worker xác thực trực tiếp với secret, không nhận mật khẩu từ D1 hoặc frontend settings.
+2. **Turnstile:** login gửi token từ widget site key `0x4AAAAAAElwX3Sma_XFYZb4`; Worker xác minh server-side bằng `TURNSTILE_SECRET_KEY` tại Siteverify. Nếu secret chưa cấu hình, login phải báo lỗi cấu hình, không bỏ qua kiểm tra. [Turnstile verify][turnstile-verify].
+3. **Auth state:** D1 chỉ giữ username chuẩn hóa, password record PBKDF2 để giữ `auth_version`/thu hồi phiên; lần login hợp lệ đầu tiên tự tạo singleton từ `ADMIN_PASSWORD`. Không có endpoint setup hoặc bootstrap secret.
+4. **Password KDF:** hash PBKDF2 chỉ dùng để tạo auth record/khôi phục phiên; nguồn xác thực là Worker Secret. Không dùng SHA-256 đơn thuần. [Web Crypto][web-crypto].
 5. **Cookie/JWT:** Secure, HttpOnly, SameSite=Strict, path `/`, tối đa 8 giờ. Khóa thuật toán verify, kiểm tra expiry/issuer/audience `hosting.pdl.vn`. Signing secret khác encryption secret.
-6. **Thu hồi phiên:** JWT có auth_version; API riêng đọc auth singleton để kiểm tra, tái sử dụng kết quả trong invocation. Đổi mật khẩu/logout tăng auth_version. Với một admin, logout đăng xuất mọi phiên; ghi rõ trong UI/README. Không ghi last_seen mỗi request.
-7. **Request:** mutation chỉ POST; kiểm tra Origin theo allowlist quản trị `https://hosting.pdl.vn`, JSON Content-Type, giới hạn body. Rate limit login/setup bằng cơ chế Cloudflare phù hợp đã xác minh lúc triển khai; không coi counter RAM là giới hạn toàn cục, không ghi KV mỗi lần đăng nhập.
+6. **Thu hồi phiên:** JWT có auth_version; API riêng đọc auth singleton để kiểm tra. Logout tăng auth_version. Đổi mật khẩu thực hiện bằng cách cập nhật `ADMIN_PASSWORD` Worker Secret, sau đó đăng nhập lại; không đổi từ UI.
+7. **Request:** mutation chỉ POST; kiểm tra Origin theo allowlist quản trị `https://hosting.pdl.vn`, JSON Content-Type, giới hạn body. Rate limit login bằng cơ chế Cloudflare phù hợp đã xác minh lúc triển khai.
 8. **Response:** auth/admin dùng `Cache-Control: no-store`, không CORS `*`. Không log password, cookie/JWT, bot token hoặc URL Telegram chứa token.
 
 ## 5. API và frontend
@@ -132,8 +132,7 @@ Các path dưới đây nằm tại root domain `hosting.pdl.vn`. Đổi helper 
 
 | Method/path | Hợp đồng |
 |---|---|
-| `GET /api/status` | `{ok, authenticated, setup_required}`; lỗi DB không biến thành yêu cầu setup |
-| `POST /api/setup` | `{username, password}` cùng bootstrap secret; đóng sau khởi tạo |
+| `GET /api/status` | `{ok, authenticated}`; không có trạng thái setup |
 | `POST /api/login` | `{username, password}`; set cookie khi thành công |
 | `POST /api/logout` | Thu hồi phiên và xóa cookie |
 | `GET /api/data` | `{ok, brand, settings, brand_version, settings_version}`; settings lọc bí mật |
@@ -144,7 +143,7 @@ Các path dưới đây nằm tại root domain `hosting.pdl.vn`. Đổi helper 
 | `GET /brand.json` | Public; JSON brand thuần, Content-Type JSON, CORS `*`; cache edge |
 
 - Port normalization PHP: ngày dd/mm/yyyy → yyyy-mm-dd, domain trim/lowercase, notify toàn cục/từng domain, contact tùy chọn. Test object rỗng, ngày sai và Unicode.
-- Telegram token trống nghĩa là giữ nguyên. UI chỉ nhận mask/trạng thái đã cấu hình. Giữ đổi username/password; cập nhật auth và settings version trong giao dịch phù hợp.
+- Telegram token trống nghĩa là giữ nguyên. UI chỉ nhận mask/trạng thái đã cấu hình. Tài khoản `phudigital` và mật khẩu do Worker Secret quản lý; UI chỉ cập nhật settings ứng dụng.
 - Bỏ phụ thuộc `brand_file.split(...)`, `brand_writable` và cảnh báo quyền ghi file; thay bằng trạng thái lưu D1.
 - Bỏ URL `cron.php?key=...`, thay bằng giờ chạy/timezone và kết quả lần chạy gần nhất. Không giữ endpoint cron GET gửi tin.
 - Dirty tracking riêng brand/settings; chỉ lưu phần thay đổi. Không autosave từng phím hoặc polling nền liên tục.
@@ -214,13 +213,13 @@ Chưa gồm admin API, bot/retry và tải khác trên tài khoản. 26 domain t
 1. Kiểm tra instructions/git status; xác định brand/settings/config production thực tế.
 2. Export brand/settings/notification log gốc; cất bản có bí mật riêng, không commit hoặc đưa vào Static Assets.
 3. Ghi DNS/routes, cron PHP, hostname quản trị, lượng request; kiểm tra plan/quota D1/Workers/cron còn lại.
-4. Tạo Turnstile widget cho `hosting.pdl.vn` bằng site key đã chọn, thêm `TURNSTILE_SECRET_KEY` vào Worker Secret khi có secret thật.
+4. Tạo Turnstile widget cho `hosting.pdl.vn` bằng site key đã chọn, thêm `TURNSTILE_SECRET_KEY` và `ADMIN_PASSWORD` vào Worker Secrets khi có secret thật.
 5. Tạo staging Worker/D1 và secrets riêng, cron tắt. Chốt hash/reset, giờ cron và redirect/cập nhật consumer từ URL cũ trước cutover.
 
 ### B. Chuyển mã
 
 1. Viết migrations, import có validate/dry-run/transaction; mặc định từ chối ghi đè DB có dữ liệu. Không biến import lỗi thành dữ liệu rỗng.
-2. Port normalize/auth/storage; kiểm tra bootstrap đồng thời và version conflict.
+2. Port normalize/auth/storage; kiểm tra đăng nhập bằng Worker Secret và version conflict.
 3. Chuyển HTML, API helper/contract, dirty tracking, cron UI, kết quả lưu từng phần.
 4. Thêm public cache, reminders, export/restore có auth. Restore brand tạo version mới và backup trạng thái hiện tại, không ghi đè auth/settings.
 
@@ -228,9 +227,9 @@ Chưa gồm admin API, bot/retry và tải khác trên tài khoản. 26 domain t
 
 - Typecheck, tests nghiệp vụ, kiểm tra bundle/config bằng Wrangler phù hợp; chạy dev thôi chưa chứng minh production.
 - So sánh JSON trước/sau import theo cấu trúc/giá trị; đủ domain/contact/notify/ngày, không có bí mật public.
-- Browser: bootstrap, login/logout/đổi mật khẩu, lưu/tải lại, conflict hai tab, lịch/preview/logo/mobile, lỗi lưu từng phần.
+- Browser: login/logout, cập nhật `ADMIN_PASSWORD` qua Wrangler, lưu/tải lại, conflict hai tab, lịch/preview/logo/mobile, lỗi lưu từng phần.
 - Consumer WordPress: JSON staging, query `_`, CORS, cache hit/miss, độ trễ sau save, không cache lỗi DB.
-- Auth: unauth/CSRF, sai route, body lớn, session hết hạn/thu hồi, hash/import lỗi không mở setup.
+- Auth: unauth/CSRF, sai route, body lớn, session hết hạn/thu hồi, secret thiếu hoặc sai phải từ chối đăng nhập.
 - Reminder: mốc 30/14/7/3/1/0, quá hạn/khoảng lặp, đổi expiry, Telegram tắt, dry-run không side effect, manual trùng cron, timeout/retry và vượt batch.
 - Test Telegram thật vào chat thử nghiệm đã chỉ định cho triển khai, xác nhận tin và đọc lại log. Không dùng cron staging gửi tới khách hàng.
 - Đo CPU auth/cron, D1 rows và request assets trên Cloudflare thực. Kiểm tra quota còn lại trước xác nhận chạy được Free.
@@ -249,7 +248,7 @@ Chưa gồm admin API, bot/retry và tải khác trên tài khoản. 26 domain t
 
 - D1 `qlhosting` (`ebe514c4-51c5-4a2b-abff-5a18e35982f2`) đã chạy migration `0001_initial.sql` và import brand/settings không chứa password hash hoặc Telegram token.
 - Worker `ql-hosting-worker` đã deploy version `8758cd4b-0d99-415c-bb6d-1df9dfc18317` với custom domain `hosting.pdl.vn`; Static Assets upload 4 file, bundle 98,13 KiB (gzip 24,31 KiB).
-- Đã đặt `JWT_SECRET` và `SETTINGS_ENCRYPTION_KEY` bằng Worker Secrets. Chưa đặt `TURNSTILE_SECRET_KEY` và `BOOTSTRAP_SECRET`, nên setup/login cố ý fail-closed cho tới khi bổ sung.
+- Bản Worker auth cố định tài khoản `phudigital` đã deploy với version `e5d0fdf0-6e0a-4f19-a1b5-3712372a098a`. Đã đặt `JWT_SECRET` và `SETTINGS_ENCRYPTION_KEY` bằng Worker Secrets. Chưa đặt `TURNSTILE_SECRET_KEY` và `ADMIN_PASSWORD`, nên login cố ý fail-closed cho tới khi bổ sung.
 - Kiểm tra live: `/` trả HTML Turnstile, `/brand.json` trả JSON public có cache headers, `/api/status` trả đúng site key, `/ql-hosting` redirect 308 về `/`.
 
 ### Rollback

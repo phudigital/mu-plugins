@@ -8,6 +8,7 @@ custom_domain = true
 
 [vars]
 APP_ORIGIN = "https://hosting.pdl.vn"
+ADMIN_USERNAME = "phudigital"
 TURNSTILE_SITE_KEY = "0x4AAAAAAElwX3Sma_XFYZb4"
 PBKDF2_ITERATIONS = "60000"
 

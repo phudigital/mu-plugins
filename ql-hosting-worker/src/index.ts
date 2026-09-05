@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
-import { decryptSecret, encryptSecret, maskSecret, signSession, verifyPassword, verifySession } from "./services/crypto";
+import { decryptSecret, encryptSecret, maskSecret, signSession, verifySession } from "./services/crypto";
 import { defaultSettings, normalizeBrand, normalizeSettings, normalizeUsername } from "./services/normalize";
 import { runReminders, sendTelegramText } from "./services/reminders";
 import { bumpAuthVersion, createAuthState, getAuthState, getBrand, getSettings, saveBrand, saveSettings, updateAuthState } from "./services/storage";
@@ -75,6 +75,19 @@ function originAllowed(env: Env, request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return true;
   return origin === env.APP_ORIGIN;
+}
+
+function configuredAdminUsername(env: Env): string {
+  return normalizeUsername(env.ADMIN_USERNAME || "phudigital");
+}
+
+function equalSecret(left: string, right: string): boolean {
+  const a = new TextEncoder().encode(left);
+  const b = new TextEncoder().encode(right);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  a.forEach((byte, index) => { diff |= byte ^ b[index]; });
+  return diff === 0;
 }
 
 app.use("*", async (c, next) => {
@@ -164,42 +177,30 @@ app.get("/api/status", async (c) => {
   return json({
     ok: true,
     authenticated,
-    setup_required: !auth,
     turnstile_site_key: c.env.TURNSTILE_SITE_KEY
   });
 });
 
-app.post("/api/setup", async (c) => {
-  const current = await getAuthState(c.env);
-  if (current) return json({ ok: false, message: "App đã được thiết lập." }, 409);
-  const payload = await readJson(c.req.raw);
-  await verifyTurnstile(c.env, String(payload.cf_turnstile_response || ""), c.req.header("cf-connecting-ip"));
-  if (c.env.BOOTSTRAP_SECRET && payload.bootstrap_secret !== c.env.BOOTSTRAP_SECRET) {
-    return json({ ok: false, message: "Bootstrap secret không hợp lệ." }, 403);
-  }
-  if (!c.env.BOOTSTRAP_SECRET) {
-    return json({ ok: false, message: "Chưa cấu hình BOOTSTRAP_SECRET." }, 503);
-  }
-  const username = normalizeUsername(payload.username || "phudigital");
-  const password = String(payload.password || "");
-  if (!username) return json({ ok: false, message: "Bạn cần nhập tài khoản." }, 422);
-  if ([...password].length < 8) return json({ ok: false, message: "Mật khẩu cần tối thiểu 8 ký tự." }, 422);
-  const auth = await createAuthState(c.env, username, password);
-  if (!auth) return json({ ok: false, message: "Tài khoản đã được tạo bởi request khác." }, 409);
-  const token = await issueSession(c.env, auth.username, auth.auth_version);
-  return attachSession(json({ ok: true, message: "Đã tạo tài khoản quản trị." }), token);
-});
-
 app.post("/api/login", async (c) => {
-  const auth = await getAuthState(c.env);
-  if (!auth) return json({ ok: false, setup_required: true, message: "Cần tạo mật khẩu quản trị." }, 403);
+  if (!c.env.ADMIN_PASSWORD) {
+    const error = new Error("Chưa cấu hình ADMIN_PASSWORD.");
+    error.name = "ConfigMissing";
+    throw error;
+  }
   const payload = await readJson(c.req.raw);
   await verifyTurnstile(c.env, String(payload.cf_turnstile_response || ""), c.req.header("cf-connecting-ip"));
-  const username = normalizeUsername(payload.username || "phudigital");
+  const username = normalizeUsername(payload.username || configuredAdminUsername(c.env));
   const password = String(payload.password || "");
-  if (auth.username !== username || !(await verifyPassword(password, auth.password_record))) {
+  if (username !== configuredAdminUsername(c.env) || !equalSecret(password, c.env.ADMIN_PASSWORD)) {
     return json({ ok: false, message: "Tài khoản hoặc mật khẩu không đúng." }, 401);
   }
+  let auth = await getAuthState(c.env);
+  if (!auth) {
+    auth = await createAuthState(c.env, username, c.env.ADMIN_PASSWORD);
+  } else if (auth.username !== username) {
+    auth = await updateAuthState(c.env, username);
+  }
+  if (!auth) return json({ ok: false, message: "Không thể khởi tạo trạng thái đăng nhập." }, 503);
   const token = await issueSession(c.env, auth.username, auth.auth_version);
   return attachSession(json({ ok: true, message: "Đã đăng nhập." }), token);
 });
@@ -252,25 +253,14 @@ app.post("/api/save-settings", async (c) => {
   if (typeof telegram.bot_token === "string" && telegram.bot_token.trim()) {
     next.telegram.bot_token_encrypted = await encryptSecret(c.env, telegram.bot_token.trim());
   }
-  const username = normalizeUsername(incoming.username || auth.username);
-  const newPassword = String(incoming.new_password || "");
-  if (newPassword && [...newPassword].length < 8) {
-    return json({ ok: false, message: "Mật khẩu mới cần tối thiểu 8 ký tự." }, 422);
-  }
   const version = await saveSettings(c.env, next, expected);
   if (version < 0) return json({ ok: false, message: "Cài đặt đã thay đổi ở phiên khác. Tải lại trước khi lưu." }, 409);
-  const authChanged = username !== auth.username || Boolean(newPassword);
-  const nextAuth = authChanged ? await updateAuthState(c.env, username, newPassword || undefined) : auth;
   const response = json({
     ok: true,
     message: "Đã lưu cài đặt.",
-    settings: await publicSettings(c.env, nextAuth.username, version),
+    settings: await publicSettings(c.env, auth.username, version),
     version
   });
-  if (authChanged) {
-    const token = await issueSession(c.env, nextAuth.username, nextAuth.auth_version);
-    return attachSession(response, token);
-  }
   return response;
 });
 

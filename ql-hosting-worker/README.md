@@ -16,7 +16,7 @@ Không commit secret vào repo. Tạo sau khi có project Cloudflare:
 npx wrangler secret put JWT_SECRET
 npx wrangler secret put SETTINGS_ENCRYPTION_KEY
 npx wrangler secret put TURNSTILE_SECRET_KEY
-npx wrangler secret put BOOTSTRAP_SECRET
+npx wrangler secret put ADMIN_PASSWORD
 ```
 
 Turnstile site key public đã cấu hình trong `wrangler.toml` và `public/index.html`:
@@ -41,7 +41,7 @@ npm run import:sql
 npx wrangler d1 execute qlhosting --remote --file ./scripts/import.sql
 ```
 
-File import không chứa password hash hoặc Telegram bot token. Sau import, tạo tài khoản bằng màn hình setup và nhập lại bot token trong tab Bot.
+File import không chứa password hash hoặc Telegram bot token. Tài khoản quản trị cố định là `phudigital`; đặt mật khẩu cũ vào Worker Secret `ADMIN_PASSWORD`, sau đó đăng nhập và nhập lại bot token trong tab Bot.
 
 ## Deploy
 

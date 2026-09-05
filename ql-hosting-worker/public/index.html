@@ -30,15 +30,11 @@
             <form id="authForm" class="stack">
                 <label>
                     <span>Tài khoản</span>
-                    <input id="authUsername" type="text" autocomplete="username" value="phudigital" autocapitalize="none" spellcheck="false" required>
+                    <input id="authUsername" type="text" autocomplete="username" value="phudigital" autocapitalize="none" spellcheck="false" readonly required>
                 </label>
                 <label>
                     <span>Mật khẩu</span>
                     <input id="authPassword" type="password" minlength="8" autocomplete="current-password" required>
-                </label>
-                <label id="bootstrapSecretWrap" hidden>
-                    <span>Bootstrap secret</span>
-                    <input id="bootstrapSecret" type="password" autocomplete="one-time-code" placeholder="Chỉ dùng cho lần tạo tài khoản đầu tiên">
                 </label>
                 <div class="turnstile-slot">
                     <div class="cf-turnstile" data-sitekey="0x4AAAAAAElwX3Sma_XFYZb4" data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-error-callback="onTurnstileExpired"></div>
@@ -216,8 +212,7 @@
                 <label><span>Nhắc trước các ngày</span><input id="reminderDays" type="text" placeholder="30,14,7,3,1,0"></label>
                 <label><span>Lặp lại sau số ngày</span><input id="repeatAfter" type="number" min="1" value="1"></label>
                 <label class="checkline"><input id="notifyOverdue" type="checkbox"><span>Nhắc tiếp khi đã quá hạn</span></label>
-                <label><span>Tài khoản quản trị</span><input id="adminUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
-                <label><span>Đổi mật khẩu quản trị</span><input id="newPassword" type="password" minlength="8" placeholder="Để trống nếu không đổi"></label>
+                <p class="muted">Tài khoản cố định: <strong>phudigital</strong>. Mật khẩu được quản lý bằng Worker Secret.</p>
             </div>
             <div class="button-row">
                 <button id="testTelegramBtn" class="secondary icon-text" type="button">

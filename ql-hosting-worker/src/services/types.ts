@@ -89,10 +89,11 @@ export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   APP_ORIGIN: string;
+  ADMIN_USERNAME?: string;
+  ADMIN_PASSWORD?: string;
   TURNSTILE_SITE_KEY: string;
   TURNSTILE_SECRET_KEY?: string;
   JWT_SECRET?: string;
   SETTINGS_ENCRYPTION_KEY?: string;
-  BOOTSTRAP_SECRET?: string;
   PBKDF2_ITERATIONS?: string;
 }

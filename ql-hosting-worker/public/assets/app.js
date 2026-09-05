@@ -2,7 +2,6 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
 const state = {
-  setupRequired: false,
   brand: null,
   settings: null,
   brandVersion: 0,
@@ -618,7 +617,6 @@ function renderTelegram() {
   $('#reminderDays').value = (settings.reminders?.days || [30, 14, 7, 3, 1, 0]).join(',');
   $('#repeatAfter').value = settings.reminders?.repeat_after_days || 1;
   $('#notifyOverdue').checked = settings.reminders?.notify_overdue !== false;
-  $('#adminUsername').value = settings.username || 'phudigital';
   const lastRun = settings.last_run?.started_at ? ` · Lần chạy gần nhất: ${settings.last_run.started_at}` : '';
   $('#cronHint').textContent = `Cloudflare Cron trên ${location.host}: 07:00 Asia/Ho_Chi_Minh khi bật${lastRun}`;
 }
@@ -693,7 +691,7 @@ async function loadData() {
     renderAll();
     markSaved();
   } catch (error) {
-    if (error.status === 401 || error.payload?.setup_required) {
+    if (error.status === 401) {
       showAuth();
     } else {
       showApp();
@@ -715,17 +713,15 @@ function wireTabs() {
 function wireActions() {
   $('#authForm').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const action = state.setupRequired ? 'setup' : 'login';
-    setAuthBusy(true, state.setupRequired ? 'Tạo tài khoản' : 'Tiếp tục');
+    setAuthBusy(true, 'Đang đăng nhập...');
     try {
       if (!state.turnstileToken) {
         toast('Vui lòng hoàn tất Turnstile trước khi tiếp tục.', true);
         return;
       }
-      await api(action, {
+      await api('login', {
         username: $('#authUsername').value.trim(),
         password: $('#authPassword').value,
-        bootstrap_secret: $('#bootstrapSecret')?.value || '',
         cf_turnstile_response: state.turnstileToken,
       });
       showApp();
@@ -737,7 +733,7 @@ function wireActions() {
       toast(error.message, true);
       resetTurnstile();
     } finally {
-      setAuthBusy(false, state.setupRequired ? 'Tạo tài khoản' : 'Tiếp tục');
+      setAuthBusy(false, 'Tiếp tục');
     }
   });
 
@@ -788,7 +784,7 @@ function wireActions() {
     state.jsonDirty = true;
     markDirty();
   });
-  ['tgEnabled', 'tgToken', 'tgChatId', 'reminderDays', 'repeatAfter', 'notifyOverdue', 'adminUsername', 'newPassword'].forEach((id) => {
+  ['tgEnabled', 'tgToken', 'tgChatId', 'reminderDays', 'repeatAfter', 'notifyOverdue'].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', markDirty);
@@ -851,7 +847,6 @@ function wireActions() {
 async function saveSettings() {
   const token = $('#tgToken').value.trim();
   const settings = {
-    username: $('#adminUsername').value.trim(),
     telegram: {
       enabled: $('#tgEnabled').checked,
       chat_id: $('#tgChatId').value.trim(),
@@ -861,14 +856,12 @@ async function saveSettings() {
       notify_overdue: $('#notifyOverdue').checked,
       repeat_after_days: Number($('#repeatAfter').value || 1),
     },
-    new_password: $('#newPassword').value,
   };
   if (token) settings.telegram.bot_token = token;
   const result = await api('save-settings', { settings, version: state.settingsVersion });
   state.settings = result.settings;
   state.settingsVersion = result.version;
   $('#tgToken').value = '';
-  $('#newPassword').value = '';
   renderTelegram();
 }
 
@@ -877,15 +870,11 @@ async function boot() {
   wireActions();
   try {
     const status = await api('status');
-    state.setupRequired = !!status.setup_required;
-    $('#bootstrapSecretWrap').hidden = !state.setupRequired;
     if (status.authenticated) {
       await loadData();
     } else {
       showAuth();
-      $('#authCopy').textContent = state.setupRequired
-        ? 'Tạo tài khoản quản trị đầu tiên cho hosting.pdl.vn.'
-        : 'Đăng nhập để cập nhật brand.json và lịch nhắc Telegram.';
+      $('#authCopy').textContent = 'Đăng nhập để cập nhật brand.json và lịch nhắc Telegram.';
     }
   } catch (error) {
     showAuth();
