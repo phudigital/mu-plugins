@@ -312,7 +312,7 @@ app.get("/brand.json", async (c) => {
 app.notFound((c) => json({ ok: false, message: "Không tìm thấy." }, 404));
 
 app.onError((error) => {
-  const status = error.name === "PayloadTooLarge" ? 413 : error.name === "BadJson" ? 400 : 500;
+  const status = error.name === "PayloadTooLarge" ? 413 : error.name === "BadJson" ? 400 : error.name === "ConfigMissing" ? 503 : 500;
   return json({ ok: false, message: error.message || "Có lỗi xảy ra." }, status);
 });
 
