@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: PDL Solutions — Core Manager
- * Description: Bộ MU-plugin quản trị website khách hàng PDL: dashboard hỗ trợ, branding đăng nhập, đổi URL login, dọn admin, ẩn menu/plugin và sao chép nội dung.
- * Version: 1.4.0
+ * Description: Bộ MU-plugin quản trị website khách hàng PDL: dashboard hỗ trợ từ QL Hosting, branding đăng nhập, đổi URL login, dọn admin, ẩn menu/plugin và sao chép nội dung.
+ * Version: 1.4.1
  * Author: Công Ty TNHH Giải Pháp PDL
  * Author URI: https://pdl.vn
  */
@@ -10,8 +10,28 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 define( 'PDL_MODULES_DIR', __DIR__ . '/pdl-modules/' );
-define( 'PDL_VERSION', '1.4.0' );
+define( 'PDL_VERSION', '1.4.1' );
 define( 'PDL_MODULE_ERRORS_OPTION', 'pdl_core_manager_module_errors' );
+
+if ( ! defined( 'PDL_HOSTING_MANAGER_URL' ) ) {
+    define( 'PDL_HOSTING_MANAGER_URL', 'https://hosting.pdl.vn/' );
+}
+
+if ( ! defined( 'PDL_HOSTING_BRAND_JSON_URL' ) ) {
+    define( 'PDL_HOSTING_BRAND_JSON_URL', 'https://hosting.pdl.vn/brand.json' );
+}
+
+function pdl_core_manager_hosting_url() {
+    $url = esc_url_raw( trim( (string) apply_filters( 'pdl_core_manager_hosting_url', PDL_HOSTING_MANAGER_URL ) ) );
+
+    return trailingslashit( $url ?: PDL_HOSTING_MANAGER_URL );
+}
+
+function pdl_core_manager_brand_json_url() {
+    $url = esc_url_raw( trim( (string) apply_filters( 'pdl_core_manager_brand_json_url', PDL_HOSTING_BRAND_JSON_URL ) ) );
+
+    return $url ?: PDL_HOSTING_BRAND_JSON_URL;
+}
 
 function pdl_core_manager_admin_notice( $message, $type = 'warning' ) {
     add_action(

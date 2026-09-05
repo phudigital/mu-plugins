@@ -2,7 +2,11 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 function pdl_dashboard_widget_content() {
-    $year = date('Y');
+    $year              = date( 'Y' );
+    $manager_url       = function_exists( 'pdl_core_manager_hosting_url' ) ? pdl_core_manager_hosting_url() : 'https://hosting.pdl.vn/';
+    $brand_json_url    = function_exists( 'pdl_core_manager_brand_json_url' ) ? pdl_core_manager_brand_json_url() : 'https://hosting.pdl.vn/brand.json';
+    $manager_url_attr  = esc_url( $manager_url );
+    $brand_json_js_url = wp_json_encode( $brand_json_url );
     echo <<<HTML
 <div id="pdl-widget-wrap">
 <style>
@@ -35,9 +39,10 @@ function pdl_dashboard_widget_content() {
     #pdl-widget-wrap .pw-cv{font-size:12.5px;font-weight:700;margin:0;}
     #pdl-widget-wrap .pw-cv a{color:#273253;text-decoration:none;}
     #pdl-widget-wrap .pw-cv a:hover{text-decoration:underline;}
-    #pdl-widget-wrap .pw-foot{border-top:1px solid #dde1ef;padding-top:10px;display:flex;justify-content:space-between;align-items:center;}
+    #pdl-widget-wrap .pw-foot{border-top:1px solid #dde1ef;padding-top:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
     #pdl-widget-wrap .pw-copy{font-size:11px;color:#8a93b8;}
-    #pdl-widget-wrap .pw-link{font-size:12px;font-weight:700;color:#273253;text-decoration:none;}
+    #pdl-widget-wrap .pw-links{display:inline-flex;align-items:center;gap:10px;}
+    #pdl-widget-wrap .pw-link{font-size:12px;font-weight:700;color:#273253;text-decoration:none;white-space:nowrap;}
     @media (max-width: 680px){
         #pdl-widget-wrap .pw-head{padding:14px 16px;gap:12px;align-items:flex-start;}
         #pdl-widget-wrap .pw-logo{width:42px;height:42px;}
@@ -51,6 +56,7 @@ function pdl_dashboard_widget_content() {
         #pdl-widget-wrap .pw-grid{grid-template-columns:1fr;gap:10px;}
         #pdl-widget-wrap .pw-card{padding:12px;}
         #pdl-widget-wrap .pw-foot{flex-direction:column;align-items:flex-start;gap:8px;}
+        #pdl-widget-wrap .pw-links{width:100%;justify-content:space-between;}
         #pdl-widget-wrap .pw-link{display:inline-flex;align-items:center;gap:6px;}
     }
 </style>
@@ -70,7 +76,10 @@ function pdl_dashboard_widget_content() {
         </div>
         <div class="pw-foot">
             <span class="pw-copy">&copy; {$year} Công Ty TNHH Giải Pháp PDL</span>
-            <a class="pw-link" href="https://pdl.vn" target="_blank">pdl.vn &rarr;</a>
+            <span class="pw-links">
+                <a class="pw-link" href="{$manager_url_attr}" target="_blank" rel="noopener noreferrer">QL Hosting &rarr;</a>
+                <a class="pw-link" href="https://pdl.vn" target="_blank" rel="noopener noreferrer">pdl.vn &rarr;</a>
+            </span>
         </div>
     </div>
 </div>
@@ -159,7 +168,8 @@ function pdl_dashboard_widget_content() {
     }
     var domain=location.hostname.replace(/^www\./,'');
     var bust=Math.floor(Date.now()/3600000);
-    fetch('https://hosting.pdl.vn/brand.json?_='+bust)
+    var brandJsonUrl={$brand_json_js_url};
+    fetch(brandJsonUrl+'?_='+bust)
         .then(function(r){return r.json();})
         .then(function(d){
             var upd=d.updated_at?' &nbsp;&middot;&nbsp; Cập nhật: '+formatDate(d.updated_at):'';
