@@ -37,10 +37,26 @@ describe("normalizeSettings", () => {
       reminders: { days: [30, 7, 7, 1], repeat_after_days: 2 }
     }, {
       telegram: { enabled: false, chat_id: "", bot_token_encrypted: "v1:test" },
+      cloudflare: { api_token_encrypted: "", last_sync: "", zones: [] },
       reminders: { days: [30], notify_overdue: true, repeat_after_days: 1 },
       last_run: null
     });
     expect(settings.telegram.bot_token_encrypted).toBe("v1:test");
     expect(settings.reminders.days).toEqual([1, 7, 30]);
+  });
+
+  it("preserves and normalizes Cloudflare sync metadata", () => {
+    const settings = normalizeSettings({
+      cloudflare: {
+        zones: [
+          { name: " PDL.VN ", status: "active", paused: false, type: "full", account_name: "PDL" },
+          { name: "pdl.vn", status: "pending" },
+          { name: "not a domain", status: "active" }
+        ]
+      }
+    });
+    expect(settings.cloudflare.zones).toEqual([
+      { name: "pdl.vn", status: "active", paused: false, type: "full", account_name: "PDL" }
+    ]);
   });
 });

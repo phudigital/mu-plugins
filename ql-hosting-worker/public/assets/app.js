@@ -223,6 +223,26 @@ function statusFor(info) {
   return { label: `${days} ngày`, className: 'ok' };
 }
 
+function cloudflareStatus(zone) {
+  if (!zone) return null;
+  if (zone.paused) return { label: 'Cloudflare tạm dừng', className: 'warn' };
+  if (zone.status && zone.status !== 'active') return { label: `Cloudflare ${zone.status}`, className: 'warn' };
+  return { label: 'Cloudflare', className: '' };
+}
+
+function cloudflareSyncLabel() {
+  const cloudflare = state.settings?.cloudflare || {};
+  const zones = Array.isArray(cloudflare.zones) ? cloudflare.zones : [];
+  if (!cloudflare.last_sync) {
+    return cloudflare.has_api_token
+      ? 'Đã lưu token. Bấm Đồng bộ để lấy toàn bộ zone Cloudflare.'
+      : 'Nhập API token chỉ có quyền Zone:Read để lấy toàn bộ domain đang quản lý. Domain đã có sẽ được giữ nguyên dữ liệu.';
+  }
+  const date = new Date(cloudflare.last_sync);
+  const time = Number.isNaN(date.getTime()) ? cloudflare.last_sync : date.toLocaleString('vi-VN');
+  return `Lần gần nhất: ${time} · ${zones.length} zone. Domain đã có được giữ nguyên dữ liệu.`;
+}
+
 function blankNotify() {
   return { active: false, type: 'info', message: '', button_text: '', button_url: '' };
 }
@@ -437,17 +457,19 @@ function renderBrand() {
 function renderDomains() {
   const list = $('#domainList');
   const query = $('#domainSearch').value.trim().toLowerCase();
+  const cloudflareZones = new Map((state.settings?.cloudflare?.zones || []).map((zone) => [zone.name, zone]));
   const entries = Object.entries(state.brand.domains || {})
     .filter(([domain]) => !query || domain.toLowerCase().includes(query))
     .sort(([a], [b]) => a.localeCompare(b));
 
   list.innerHTML = entries.length ? entries.map(([domain, info]) => {
     const status = statusFor(info);
+    const cfStatus = cloudflareStatus(cloudflareZones.get(domain));
     return `
       <article class="domain-row" data-domain="${escapeHtml(domain)}">
         <button class="domain-summary" type="button">
           <span>
-            <span class="domain-name">${escapeHtml(domain)}</span>
+            <span class="domain-name">${escapeHtml(domain)}${cfStatus ? ` <span class="cloudflare-badge ${cfStatus.className}" title="Zone có trong tài khoản Cloudflare">${escapeHtml(cfStatus.label)}</span>` : ''}</span>
             <span class="domain-meta">${escapeHtml(toDisplayDate(info.expire) || 'Chưa có ngày hết hạn')}${info.hosting_note ? ` · ${escapeHtml(info.hosting_note)}` : ''}</span>
           </span>
           <span class="status ${status.className}">${escapeHtml(status.label)}</span>
@@ -521,6 +543,9 @@ function renderDomains() {
       return state.brand.domains[domain].notify;
     });
   });
+
+  $('#cfSyncSummary').textContent = cloudflareSyncLabel();
+  $('#cfToken').placeholder = state.settings?.cloudflare?.has_api_token ? 'Đã lưu token · để trống nếu không đổi' : 'Nhập token Cloudflare';
 }
 
 function renderContacts() {
@@ -810,6 +835,44 @@ function wireActions() {
     syncJson();
   });
 
+  $('#syncCloudflareBtn').addEventListener('click', async () => {
+    if (state.dirty) {
+      toast('Hãy lưu hoặc tải lại các thay đổi hiện tại trước khi đồng bộ Cloudflare.', true);
+      return;
+    }
+    const token = $('#cfToken').value.trim();
+    if (!token && !state.settings?.cloudflare?.has_api_token) {
+      toast('Nhập API token Cloudflare có quyền Zone:Read.', true);
+      $('#cfToken').focus();
+      return;
+    }
+    const button = $('#syncCloudflareBtn');
+    const label = $('span:last-child', button);
+    button.disabled = true;
+    if (label) label.textContent = 'Đang đọc...';
+    try {
+      const result = await api('cloudflare-sync', {
+        api_token: token,
+        brand_version: state.brandVersion,
+        settings_version: state.settingsVersion,
+      });
+      state.brand = result.brand;
+      state.settings = result.settings;
+      state.brandVersion = result.brand_version;
+      state.settingsVersion = result.settings_version;
+      $('#cfToken').value = '';
+      renderAll();
+      markSaved();
+      const added = result.added?.length ? ` ${result.added.join(', ')}.` : '';
+      toast(`${result.message || 'Đồng bộ Cloudflare thành công.'}${added}`);
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      button.disabled = false;
+      if (label) label.textContent = 'Đồng bộ';
+    }
+  });
+
   $('#addContactBtn').addEventListener('click', () => {
     state.brand.contacts = state.brand.contacts || [];
     state.brand.contacts.push({ label: '', phone: '', display: '', link_url: '' });
@@ -853,11 +916,13 @@ function wireActions() {
 
 async function saveSettings() {
   const token = $('#tgToken').value.trim();
+  const cloudflareToken = $('#cfToken').value.trim();
   const settings = {
     telegram: {
       enabled: $('#tgEnabled').checked,
       chat_id: $('#tgChatId').value.trim(),
     },
+    cloudflare: {},
     reminders: {
       days: $('#reminderDays').value.split(',').map((value) => Number(value.trim())).filter((value) => Number.isFinite(value)),
       notify_overdue: $('#notifyOverdue').checked,
@@ -865,10 +930,12 @@ async function saveSettings() {
     },
   };
   if (token) settings.telegram.bot_token = token;
+  if (cloudflareToken) settings.cloudflare.api_token = cloudflareToken;
   const result = await api('save-settings', { settings, version: state.settingsVersion });
   state.settings = result.settings;
   state.settingsVersion = result.version;
   $('#tgToken').value = '';
+  $('#cfToken').value = '';
   renderTelegram();
 }
 

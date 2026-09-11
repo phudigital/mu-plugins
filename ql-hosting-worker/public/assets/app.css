@@ -156,6 +156,19 @@ h1 {
   line-height: 1.02;
 }
 
+.app-version {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 h2 {
   margin-bottom: 0;
   font-size: 18px;
@@ -746,6 +759,61 @@ body.is-dirty #saveBtn {
   flex: 1;
 }
 
+.cloudflare-sync-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  align-items: end;
+  gap: 14px 20px;
+  padding: 16px;
+  border: 1px solid #b8c8f5;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f4f7ff, #fff);
+}
+
+.cloudflare-sync-copy p:last-child,
+.cloudflare-sync-help {
+  margin-bottom: 0;
+}
+
+.cloudflare-sync-copy h2 {
+  margin-bottom: 5px;
+}
+
+.cloudflare-sync-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.cloudflare-sync-help {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+
+.cloudflare-sync-help a {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.cloudflare-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 7px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fff0e5;
+  color: #a64800;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.cloudflare-badge.warn {
+  background: #fff4d8;
+  color: var(--warning);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1052,6 +1120,14 @@ body.is-dirty #saveBtn {
 }
 
 @media (max-width: 760px) {
+  .cloudflare-sync-card {
+    grid-template-columns: 1fr;
+  }
+
+  .cloudflare-sync-actions {
+    grid-template-columns: 1fr;
+  }
+
   .app-shell {
     padding-left: 12px;
     padding-right: 12px;

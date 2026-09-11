@@ -54,15 +54,33 @@ export interface RunSummary {
   skipped: string[];
 }
 
+export interface CloudflareZoneInfo {
+  name: string;
+  status: string;
+  paused: boolean;
+  type: string;
+  account_name: string;
+}
+
+export interface CloudflareSettings {
+  api_token_encrypted?: string;
+  last_sync: string;
+  zones: CloudflareZoneInfo[];
+}
+
 export interface SettingsDocument {
   telegram: TelegramSettings;
+  cloudflare: CloudflareSettings;
   reminders: ReminderSettings;
   last_run: RunSummary | null;
 }
 
-export interface PublicSettings extends Omit<SettingsDocument, "telegram"> {
+export interface PublicSettings extends Omit<SettingsDocument, "telegram" | "cloudflare"> {
   username: string;
   telegram: Omit<TelegramSettings, "bot_token_encrypted">;
+  cloudflare: Omit<CloudflareSettings, "api_token_encrypted"> & {
+    has_api_token: boolean;
+  };
 }
 
 export interface DocumentRow {

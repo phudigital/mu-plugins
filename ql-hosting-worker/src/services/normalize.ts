@@ -1,4 +1,4 @@
-import type { BrandDocument, Contact, NotifyConfig, NotifyType, SettingsDocument } from "./types";
+import type { BrandDocument, CloudflareZoneInfo, Contact, NotifyConfig, NotifyType, SettingsDocument } from "./types";
 
 const notifyTypes = new Set<NotifyType>(["info", "warning", "error", "success"]);
 
@@ -18,6 +18,13 @@ export function normalizeText(value: unknown): string {
 
 export function normalizeUsername(value: unknown): string {
   return normalizeText(value).toLocaleLowerCase("vi-VN");
+}
+
+export function normalizeHostname(value: unknown): string {
+  const hostname = normalizeText(value).toLocaleLowerCase("en-US");
+  if (!hostname || hostname.length > 253 || !/^[a-z0-9.-]+$/.test(hostname)) return "";
+  if (hostname.startsWith(".") || hostname.endsWith(".") || hostname.includes("..")) return "";
+  return hostname;
 }
 
 export function normalizeDateString(value: unknown): string {
@@ -110,7 +117,7 @@ export function normalizeBrand(value: unknown): BrandDocument {
     : {};
 
   Object.keys(incomingDomains).sort((a, b) => a.localeCompare(b)).forEach((domainKey) => {
-    const domain = normalizeText(domainKey).toLocaleLowerCase("vi-VN");
+    const domain = normalizeHostname(domainKey);
     if (!domain) return;
     const info = incomingDomains[domainKey] && typeof incomingDomains[domainKey] === "object"
       ? incomingDomains[domainKey] as Record<string, unknown>
@@ -141,6 +148,11 @@ export function defaultSettings(): SettingsDocument {
       chat_id: "",
       bot_token_encrypted: ""
     },
+    cloudflare: {
+      api_token_encrypted: "",
+      last_sync: "",
+      zones: []
+    },
     reminders: {
       days: [30, 14, 7, 3, 1, 0],
       notify_overdue: true,
@@ -158,6 +170,28 @@ export function normalizeSettings(value: unknown, previous: SettingsDocument = d
   const reminders = input.reminders && typeof input.reminders === "object"
     ? input.reminders as Record<string, unknown>
     : {};
+  const cloudflare = input.cloudflare && typeof input.cloudflare === "object"
+    ? input.cloudflare as Record<string, unknown>
+    : {};
+
+  const zones: CloudflareZoneInfo[] = [];
+  const seenZones = new Set<string>();
+  const incomingZones = Array.isArray(cloudflare.zones) ? cloudflare.zones : previous.cloudflare.zones;
+  incomingZones.forEach((value) => {
+    if (!value || typeof value !== "object") return;
+    const zone = value as Record<string, unknown>;
+    const name = normalizeHostname(zone.name);
+    if (!name || seenZones.has(name)) return;
+    seenZones.add(name);
+    zones.push({
+      name,
+      status: normalizeText(zone.status),
+      paused: Boolean(zone.paused),
+      type: normalizeText(zone.type),
+      account_name: normalizeText(zone.account_name)
+    });
+  });
+  zones.sort((a, b) => a.name.localeCompare(b.name));
 
   const days = Array.from(new Set(
     (Array.isArray(reminders.days) ? reminders.days : previous.reminders.days)
@@ -170,6 +204,11 @@ export function normalizeSettings(value: unknown, previous: SettingsDocument = d
       enabled: Boolean(telegram.enabled),
       chat_id: normalizeText(telegram.chat_id ?? previous.telegram.chat_id),
       bot_token_encrypted: normalizeText(telegram.bot_token_encrypted ?? previous.telegram.bot_token_encrypted)
+    },
+    cloudflare: {
+      api_token_encrypted: normalizeText(cloudflare.api_token_encrypted ?? previous.cloudflare.api_token_encrypted),
+      last_sync: normalizeText(cloudflare.last_sync ?? previous.cloudflare.last_sync),
+      zones
     },
     reminders: {
       days: days.length ? days : previous.reminders.days,

@@ -23,12 +23,23 @@ describe("Worker login and dashboard session", () => {
     return convertV4MiniflareOptions({
       modules: true,
       script,
-      compatibilityDate: "2026-09-05",
+      compatibilityDate: "2026-09-10",
       cf: false as const,
       d1Databases: ["DB"],
       bindings: { ...bindings, ...overrides },
       outboundService: async (request) => {
-        // Isolate external calls: these tests never contact Cloudflare or Telegram.
+        if (request.url.startsWith("https://api.cloudflare.com/client/v4/zones")) {
+          expect(request.headers.get("authorization")).toBe("Bearer cf-read-token");
+          return TestResponse.json({
+            success: true,
+            result_info: { total_pages: 1 },
+            result: [
+              { name: "pdl.vn", status: "active", paused: false, type: "full", account: { name: "Phú Digital" } },
+              { name: "360vr.com.vn", status: "active", paused: false, type: "full", account: { name: "Phú Digital" } }
+            ]
+          });
+        }
+        // Isolate outbound calls: these tests never contact Cloudflare or Telegram over the network.
         expect(request.url).toBe("https://challenges.cloudflare.com/turnstile/v0/siteverify");
         const form = await request.formData();
         expect(form.get("secret")).toBe(bindings.TURNSTILE_SECRET_KEY);
@@ -66,6 +77,27 @@ describe("Worker login and dashboard session", () => {
     verifiedTokens = new Set();
     const db = await worker.getD1Database("DB");
     await db.prepare("DELETE FROM auth_state").run();
+    await db.prepare("UPDATE documents SET json = ?, version = 1 WHERE key = 'brand'").bind(JSON.stringify({
+      company: "PDL",
+      address: "",
+      website: "https://pdl.vn",
+      logo: "",
+      updated_at: "2026-09-01",
+      notify: { active: false, type: "info", message: "", button_text: "", button_url: "" },
+      contacts: [],
+      domains: {
+        "pdl.vn": {
+          expire: "2027-01-01",
+          hosting_note: "VPS cũ",
+          notify: { active: false, type: "info", message: "", button_text: "", button_url: "" }
+        }
+      }
+    })).run();
+    await db.prepare("UPDATE documents SET json = ?, version = 1 WHERE key = 'settings'").bind(JSON.stringify({
+      telegram: { enabled: false, chat_id: "", bot_token_encrypted: "" },
+      reminders: { days: [30, 14, 7, 3, 1, 0], notify_overdue: true, repeat_after_days: 1 },
+      last_run: null
+    })).run();
   });
 
   afterAll(async () => { await worker?.dispose(); });
@@ -138,5 +170,44 @@ describe("Worker login and dashboard session", () => {
     expect(status.status).toBe(200);
     expect(await status.json()).toMatchObject({ authenticated: false });
     expect((await worker.dispatchFetch(`${origin}/api/data`, { headers })).status).toBe(401);
+  });
+
+  it("syncs every Cloudflare zone, preserves existing domain data, and never returns the token", async () => {
+    const loggedIn = await login("cf-login");
+    const headers = {
+      Cookie: (loggedIn.headers.get("set-cookie") || "").split(";")[0],
+      Origin: origin,
+      "Content-Type": "application/json"
+    };
+    const response = await worker.dispatchFetch(`${origin}/api/cloudflare-sync`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ api_token: "cf-read-token", brand_version: 1, settings_version: 1 })
+    });
+    expect(response.status).toBe(200);
+    const data = await response.json() as {
+      added: string[];
+      brand: { domains: Record<string, { expire: string; hosting_note: string }> };
+      settings: { cloudflare: { has_api_token: boolean; zones: Array<{ name: string }> } };
+      brand_version: number;
+      settings_version: number;
+    };
+    expect(data.added).toEqual(["360vr.com.vn"]);
+    expect(data.brand.domains["pdl.vn"]).toMatchObject({ expire: "2027-01-01", hosting_note: "VPS cũ" });
+    expect(data.brand.domains["360vr.com.vn"]).toMatchObject({ expire: "", hosting_note: "" });
+    expect(data.settings.cloudflare).toMatchObject({ has_api_token: true, zones: [{ name: "360vr.com.vn" }, { name: "pdl.vn" }] });
+    expect(JSON.stringify(data)).not.toContain("cf-read-token");
+
+    const db = await worker.getD1Database("DB");
+    const stored = String(await db.prepare("SELECT json FROM documents WHERE key = 'settings'").first("json"));
+    expect(stored).not.toContain("cf-read-token");
+
+    const second = await worker.dispatchFetch(`${origin}/api/cloudflare-sync`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ brand_version: data.brand_version, settings_version: data.settings_version })
+    });
+    expect(second.status).toBe(200);
+    expect(await second.json()).toMatchObject({ added: [], zone_count: 2 });
   });
 });

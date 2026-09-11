@@ -43,6 +43,45 @@ export async function saveSettings(env: Env, settings: SettingsDocument, expecte
   return nextVersion;
 }
 
+export async function saveCloudflareSync(
+  env: Env,
+  brand: BrandDocument,
+  settings: SettingsDocument,
+  expectedBrandVersion: number,
+  expectedSettingsVersion: number
+): Promise<{ brandVersion: number; settingsVersion: number } | null> {
+  const now = new Date().toISOString();
+  const versionGuard = `2 = (
+    SELECT COUNT(*) FROM documents
+    WHERE (key = 'brand' AND version = ?) OR (key = 'settings' AND version = ?)
+  )`;
+  const revision = env.DB.prepare(`
+    INSERT INTO brand_revisions (document_key, version, json)
+    SELECT key, version, json FROM documents
+    WHERE key = 'brand' AND version = ? AND ${versionGuard}
+  `).bind(expectedBrandVersion, expectedBrandVersion, expectedSettingsVersion);
+  const update = env.DB.prepare(`
+    UPDATE documents
+    SET json = CASE key WHEN 'brand' THEN ? WHEN 'settings' THEN ? END,
+        version = version + 1,
+        updated_at = ?
+    WHERE key IN ('brand', 'settings') AND ${versionGuard}
+  `).bind(
+    JSON.stringify(brand),
+    JSON.stringify(settings),
+    now,
+    expectedBrandVersion,
+    expectedSettingsVersion
+  );
+  const [, updateResult] = await env.DB.batch([revision, update]);
+  if (!updateResult.meta || Number(updateResult.meta.changes || 0) !== 2) return null;
+  await env.DB.prepare("DELETE FROM brand_revisions WHERE id NOT IN (SELECT id FROM brand_revisions WHERE document_key = 'brand' ORDER BY version DESC LIMIT 30)").run();
+  return {
+    brandVersion: expectedBrandVersion + 1,
+    settingsVersion: expectedSettingsVersion + 1
+  };
+}
+
 export async function getAuthState(env: Env): Promise<AuthState | null> {
   const row = await env.DB.prepare("SELECT username, password_record, auth_version FROM auth_state WHERE id = 1")
     .first<{ username: string; password_record: string; auth_version: number }>();

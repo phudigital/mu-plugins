@@ -2,6 +2,8 @@
 
 Worker quản trị QL Hosting chạy tại `https://hosting.pdl.vn`.
 
+Phiên bản hiện tại: **0.2.0**.
+
 ## URL
 
 - Admin: `https://hosting.pdl.vn/`
@@ -53,6 +55,14 @@ npx wrangler d1 execute qlhosting --remote --file ./scripts/import.sql
 ```
 
 File import không chứa password hash hoặc Telegram bot token. Tài khoản quản trị cố định là `phudigital`; đặt mật khẩu cũ vào Worker Secret `ADMIN_PASSWORD`, sau đó đăng nhập và nhập lại bot token trong tab Bot.
+
+## Đồng bộ domain Cloudflare
+
+Tab **Site** có thể đọc tất cả zone Cloudflare và thêm domain còn thiếu vào `brand.json`. Dữ liệu đã có như ngày hết hạn, ghi chú hosting và thông báo riêng được giữ nguyên. Zone không còn ở Cloudflare cũng không bị tự động xóa.
+
+Tạo Custom API Token tại `https://dash.cloudflare.com/profile/api-tokens` với quyền đọc tối thiểu `Zone : Zone : Read` cho các zone cần quản lý. Dán token vào tab Site và bấm **Đồng bộ**. Token được mã hóa bằng `SETTINGS_ENCRYPTION_KEY` trước khi lưu trong D1; API quản trị chỉ trả cờ `has_api_token`, không trả token hoặc token rút gọn.
+
+Worker chỉ gọi `GET /client/v4/zones`, phân trang 50 zone/trang và dừng an toàn nếu vượt quá 1.000 zone. Không có thao tác ghi nào lên Cloudflare.
 
 ## Deploy
 

@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
+import { CloudflareError, listCloudflareZones } from "./services/cloudflare";
 import { decryptSecret, encryptSecret, maskSecret, signSession, verifySession } from "./services/crypto";
 import { defaultSettings, normalizeBrand, normalizeSettings, normalizeUsername } from "./services/normalize";
 import { runReminders, sendTelegramText } from "./services/reminders";
-import { bumpAuthVersion, createAuthState, getAuthState, getBrand, getSettings, saveBrand, saveSettings, updateAuthState } from "./services/storage";
+import { bumpAuthVersion, createAuthState, getAuthState, getBrand, getSettings, saveBrand, saveCloudflareSync, saveSettings, updateAuthState } from "./services/storage";
 import { TurnstileError, verifyTurnstile } from "./services/turnstile";
 import type { Env, PublicSettings } from "./services/types";
 
@@ -141,11 +142,19 @@ async function issueSession(env: Env, username: string, authVersion: number): Pr
 async function publicSettings(env: Env, username: string, settingsVersion?: number): Promise<PublicSettings & { _version?: number }> {
   const { settings, version } = await getSettings(env);
   let token = "";
+  let cloudflareToken = "";
   if (settings.telegram.bot_token_encrypted) {
     try {
       token = await decryptSecret(env, settings.telegram.bot_token_encrypted);
     } catch {
       token = "";
+    }
+  }
+  if (settings.cloudflare.api_token_encrypted) {
+    try {
+      cloudflareToken = await decryptSecret(env, settings.cloudflare.api_token_encrypted);
+    } catch {
+      cloudflareToken = "";
     }
   }
   return {
@@ -155,6 +164,11 @@ async function publicSettings(env: Env, username: string, settingsVersion?: numb
       chat_id: settings.telegram.chat_id,
       bot_token_masked: maskSecret(token),
       has_bot_token: Boolean(token)
+    },
+    cloudflare: {
+      has_api_token: Boolean(cloudflareToken),
+      last_sync: settings.cloudflare.last_sync,
+      zones: settings.cloudflare.zones
     },
     reminders: settings.reminders,
     last_run: settings.last_run,
@@ -216,6 +230,7 @@ app.use("/api/save-brand", async (c, next) => (await authenticate(c)) || next())
 app.use("/api/save-settings", async (c, next) => (await authenticate(c)) || next());
 app.use("/api/test-telegram", async (c, next) => (await authenticate(c)) || next());
 app.use("/api/run-reminders", async (c, next) => (await authenticate(c)) || next());
+app.use("/api/cloudflare-sync", async (c, next) => (await authenticate(c)) || next());
 
 app.get("/api/data", async (c) => {
   const auth = await getAuthState(c.env);
@@ -254,6 +269,12 @@ app.post("/api/save-settings", async (c) => {
   if (typeof telegram.bot_token === "string" && telegram.bot_token.trim()) {
     next.telegram.bot_token_encrypted = await encryptSecret(c.env, telegram.bot_token.trim());
   }
+  const cloudflare = incoming.cloudflare && typeof incoming.cloudflare === "object" ? incoming.cloudflare as Record<string, unknown> : {};
+  if (typeof cloudflare.api_token === "string" && cloudflare.api_token.trim()) {
+    next.cloudflare.api_token_encrypted = await encryptSecret(c.env, cloudflare.api_token.trim());
+  } else if (cloudflare.clear_api_token === true) {
+    next.cloudflare.api_token_encrypted = "";
+  }
   const version = await saveSettings(c.env, next, expected);
   if (version < 0) return json({ ok: false, message: "Cài đặt đã thay đổi ở phiên khác. Tải lại trước khi lưu." }, 409);
   const response = json({
@@ -283,6 +304,64 @@ app.post("/api/run-reminders", async (c) => {
   return json(result);
 });
 
+app.post("/api/cloudflare-sync", async (c) => {
+  const payload = await readJson(c.req.raw);
+  const expectedBrandVersion = Number(payload.brand_version);
+  const expectedSettingsVersion = Number(payload.settings_version);
+  if (!Number.isInteger(expectedBrandVersion) || expectedBrandVersion < 1 || !Number.isInteger(expectedSettingsVersion) || expectedSettingsVersion < 1) {
+    return json({ ok: false, message: "Thiếu version dữ liệu hợp lệ." }, 422);
+  }
+
+  const { brand, version: brandVersion } = await getBrand(c.env);
+  const { settings, version: settingsVersion } = await getSettings(c.env);
+  if (brandVersion !== expectedBrandVersion || settingsVersion !== expectedSettingsVersion) {
+    return json({ ok: false, message: "Dữ liệu đã thay đổi ở phiên khác. Tải lại trước khi đồng bộ." }, 409);
+  }
+
+  const incomingToken = typeof payload.api_token === "string" ? payload.api_token.trim() : "";
+  let token = incomingToken;
+  if (!token && settings.cloudflare.api_token_encrypted) {
+    try {
+      token = await decryptSecret(c.env, settings.cloudflare.api_token_encrypted);
+    } catch {
+      throw new CloudflareError("Không giải mã được token Cloudflare đã lưu. Vui lòng nhập lại token.", 422);
+    }
+  }
+
+  const zones = await listCloudflareZones(token);
+  const added: string[] = [];
+  for (const zone of zones) {
+    if (brand.domains[zone.name]) continue;
+    brand.domains[zone.name] = {
+      expire: "",
+      hosting_note: "",
+      notify: { active: false, type: "info", message: "", button_text: "", button_url: "" }
+    };
+    added.push(zone.name);
+  }
+  if (added.length) brand.updated_at = new Date().toISOString().slice(0, 10);
+
+  settings.cloudflare = {
+    api_token_encrypted: incomingToken ? await encryptSecret(c.env, incomingToken) : settings.cloudflare.api_token_encrypted,
+    last_sync: new Date().toISOString(),
+    zones
+  };
+  const saved = await saveCloudflareSync(c.env, brand, settings, expectedBrandVersion, expectedSettingsVersion);
+  if (!saved) return json({ ok: false, message: "Dữ liệu đã thay đổi ở phiên khác. Tải lại trước khi đồng bộ." }, 409);
+  c.executionCtx.waitUntil(edgeCache().delete(new URL("/brand.json", c.req.url).toString()));
+  const auth = c.get("auth");
+  return json({
+    ok: true,
+    message: `Đã đọc ${zones.length} zone Cloudflare và thêm ${added.length} domain mới.`,
+    brand,
+    settings: await publicSettings(c.env, auth.username, saved.settingsVersion),
+    brand_version: saved.brandVersion,
+    settings_version: saved.settingsVersion,
+    zone_count: zones.length,
+    added
+  });
+});
+
 app.get("/brand.json", async (c) => {
   const cacheKey = new Request(new URL("/brand.json", c.req.url).toString(), { method: "GET" });
   const cached = await edgeCache().match(cacheKey);
@@ -305,6 +384,9 @@ app.notFound((c) => json({ ok: false, message: "Không tìm thấy." }, 404));
 app.onError((error) => {
   if (error instanceof TurnstileError) {
     return json({ ok: false, message: error.message, code: error.code }, error.status);
+  }
+  if (error instanceof CloudflareError) {
+    return json({ ok: false, message: error.message, code: "cloudflare_sync_failed" }, error.status);
   }
   const status = error.name === "PayloadTooLarge" ? 413 : error.name === "BadJson" ? 400 : error.name === "ConfigMissing" ? 503 : 500;
   return json({ ok: false, message: error.message || "Có lỗi xảy ra." }, status);

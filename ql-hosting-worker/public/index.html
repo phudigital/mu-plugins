@@ -22,7 +22,7 @@
                 <img class="app-logo" src="/assets/pdl-logo.png" alt="PDL">
                 <div>
                     <p class="eyebrow">PDL</p>
-                    <h1>QL Hosting</h1>
+                    <h1>QL Hosting <span class="app-version">v0.2.0</span></h1>
                     <p class="muted" id="authCopy">Đăng nhập để cập nhật brand.json và lịch nhắc Telegram.</p>
                 </div>
             </div>
@@ -50,7 +50,7 @@
                 <img class="app-logo" src="/assets/pdl-logo.png" alt="PDL">
                 <div>
                     <p class="eyebrow">PDL</p>
-                    <h1>QL Hosting</h1>
+                    <h1>QL Hosting <span class="app-version">v0.2.0</span></h1>
                     <p id="sessionLabel" class="muted">Quản trị brand.json</p>
                 </div>
             </div>
@@ -185,6 +185,21 @@
         </section>
 
         <section class="panel" data-panel="domains">
+            <section class="cloudflare-sync-card" aria-labelledby="cloudflareSyncTitle">
+                <div class="cloudflare-sync-copy">
+                    <p class="eyebrow">Cloudflare</p>
+                    <h2 id="cloudflareSyncTitle">Đồng bộ tất cả zone</h2>
+                    <p id="cfSyncSummary" class="muted">Nhập API token chỉ có quyền Zone:Read để lấy toàn bộ domain đang quản lý. Domain đã có sẽ được giữ nguyên dữ liệu.</p>
+                </div>
+                <div class="cloudflare-sync-actions">
+                    <label><span>API token chỉ đọc</span><input id="cfToken" type="password" autocomplete="off" placeholder="Nhập token Cloudflare"></label>
+                    <button id="syncCloudflareBtn" class="secondary icon-text" type="button">
+                        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="m16 3 4 4-4 4"/><path d="M4 17h9"/><path d="m8 13-4 4 4 4"/></svg></span>
+                        <span>Đồng bộ</span>
+                    </button>
+                </div>
+                <p class="cloudflare-sync-help muted">Token được mã hóa trước khi lưu và không bao giờ trả lại trình duyệt. <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer">Tạo token Cloudflare</a>.</p>
+            </section>
             <div class="section-head sticky-search">
                 <label class="search"><span>Tìm domain</span><input id="domainSearch" type="search" placeholder="pdl.vn"></label>
                 <button id="addDomainBtn" class="secondary icon-text" type="button" title="Thêm domain">
