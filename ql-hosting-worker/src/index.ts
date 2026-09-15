@@ -4,8 +4,9 @@ import { getCookie } from "hono/cookie";
 import { CloudflareError, listCloudflareZones } from "./services/cloudflare";
 import { decryptSecret, encryptSecret, maskSecret, signSession, verifySession } from "./services/crypto";
 import { defaultSettings, normalizeBrand, normalizeSettings, normalizeUsername } from "./services/normalize";
+import { lookupDomainRegistrar, normalizeLookupDomain, RegistrarLookupError } from "./services/registrar";
 import { runReminders, sendTelegramText } from "./services/reminders";
-import { bumpAuthVersion, createAuthState, getAuthState, getBrand, getSettings, saveBrand, saveCloudflareSync, saveSettings, updateAuthState } from "./services/storage";
+import { bumpAuthVersion, createAuthState, getAuthState, getBrand, getDomainRegistrar, getSettings, listDomainRegistrars, saveBrand, saveCloudflareSync, saveDomainProvider, saveDomainRegistrar, saveSettings, updateAuthState } from "./services/storage";
 import { TurnstileError, verifyTurnstile } from "./services/turnstile";
 import type { Env, PublicSettings } from "./services/types";
 
@@ -143,6 +144,7 @@ async function publicSettings(env: Env, username: string, settingsVersion?: numb
   const { settings, version } = await getSettings(env);
   let token = "";
   let cloudflareToken = "";
+  let bknsApiKey = "";
   if (settings.telegram.bot_token_encrypted) {
     try {
       token = await decryptSecret(env, settings.telegram.bot_token_encrypted);
@@ -157,6 +159,13 @@ async function publicSettings(env: Env, username: string, settingsVersion?: numb
       cloudflareToken = "";
     }
   }
+  if (settings.registrar.bkns_api_key_encrypted) {
+    try {
+      bknsApiKey = await decryptSecret(env, settings.registrar.bkns_api_key_encrypted);
+    } catch {
+      bknsApiKey = "";
+    }
+  }
   return {
     username,
     telegram: {
@@ -169,6 +178,9 @@ async function publicSettings(env: Env, username: string, settingsVersion?: numb
       has_api_token: Boolean(cloudflareToken),
       last_sync: settings.cloudflare.last_sync,
       zones: settings.cloudflare.zones
+    },
+    registrar: {
+      has_bkns_api_key: Boolean(bknsApiKey)
     },
     reminders: settings.reminders,
     last_run: settings.last_run,
@@ -231,15 +243,20 @@ app.use("/api/save-settings", async (c, next) => (await authenticate(c)) || next
 app.use("/api/test-telegram", async (c, next) => (await authenticate(c)) || next());
 app.use("/api/run-reminders", async (c, next) => (await authenticate(c)) || next());
 app.use("/api/cloudflare-sync", async (c, next) => (await authenticate(c)) || next());
+app.use("/api/registrars", async (c, next) => (await authenticate(c)) || next());
+app.use("/api/registrar-lookup", async (c, next) => (await authenticate(c)) || next());
+app.use("/api/registrar-provider", async (c, next) => (await authenticate(c)) || next());
 
 app.get("/api/data", async (c) => {
   const auth = await getAuthState(c.env);
   const { brand, version: brandVersion } = await getBrand(c.env);
   const settings = auth ? await publicSettings(c.env, auth.username) : { ...defaultSettings(), username: "phudigital" };
+  const registrars = await listDomainRegistrars(c.env);
   return json({
     ok: true,
     brand,
     settings,
+    registrars,
     brand_version: brandVersion,
     settings_version: "_version" in settings ? settings._version : 0
   });
@@ -274,6 +291,12 @@ app.post("/api/save-settings", async (c) => {
     next.cloudflare.api_token_encrypted = await encryptSecret(c.env, cloudflare.api_token.trim());
   } else if (cloudflare.clear_api_token === true) {
     next.cloudflare.api_token_encrypted = "";
+  }
+  const registrar = incoming.registrar && typeof incoming.registrar === "object" ? incoming.registrar as Record<string, unknown> : {};
+  if (typeof registrar.bkns_api_key === "string" && registrar.bkns_api_key.trim()) {
+    next.registrar.bkns_api_key_encrypted = await encryptSecret(c.env, registrar.bkns_api_key.trim());
+  } else if (registrar.clear_bkns_api_key === true) {
+    next.registrar.bkns_api_key_encrypted = "";
   }
   const version = await saveSettings(c.env, next, expected);
   if (version < 0) return json({ ok: false, message: "Cài đặt đã thay đổi ở phiên khác. Tải lại trước khi lưu." }, 409);
@@ -362,6 +385,48 @@ app.post("/api/cloudflare-sync", async (c) => {
   });
 });
 
+app.get("/api/registrars", async (c) => {
+  return json({ ok: true, registrars: await listDomainRegistrars(c.env) });
+});
+
+app.post("/api/registrar-lookup", async (c) => {
+  const payload = await readJson(c.req.raw);
+  const domain = normalizeLookupDomain(payload.domain);
+  if (!domain) return json({ ok: false, message: "Tên miền không hợp lệ." }, 422);
+
+  const force = payload.force === true;
+  const existing = await getDomainRegistrar(c.env, domain);
+  if (!force && existing?.checked_at) {
+    const age = Date.now() - new Date(existing.checked_at).getTime();
+    if (Number.isFinite(age) && age >= 0 && age < 12 * 60 * 60 * 1000) {
+      return json({ ok: true, registrar: existing, cached: true });
+    }
+  }
+
+  const { settings } = await getSettings(c.env);
+  let bknsApiKey = "";
+  if (settings.registrar.bkns_api_key_encrypted) {
+    try {
+      bknsApiKey = await decryptSecret(c.env, settings.registrar.bkns_api_key_encrypted);
+    } catch {
+      throw new RegistrarLookupError("Không giải mã được API key BKNS đã lưu. Vui lòng nhập lại key.", 422, "bkns_key_invalid");
+    }
+  }
+  const lookedUp = await lookupDomainRegistrar(domain, bknsApiKey);
+  const record = await saveDomainRegistrar(c.env, lookedUp);
+  return json({ ok: true, registrar: record, cached: false });
+});
+
+app.post("/api/registrar-provider", async (c) => {
+  const payload = await readJson(c.req.raw);
+  const domain = normalizeLookupDomain(payload.domain);
+  if (!domain) return json({ ok: false, message: "Tên miền không hợp lệ." }, 422);
+  const provider = String(payload.provider || "").trim();
+  if (provider.length > 120) return json({ ok: false, message: "Tên nhà cung cấp tối đa 120 ký tự." }, 422);
+  const record = await saveDomainProvider(c.env, domain, provider);
+  return json({ ok: true, message: "Đã lưu nơi mua thực tế.", registrar: record });
+});
+
 app.get("/brand.json", async (c) => {
   const cacheKey = new Request(new URL("/brand.json", c.req.url).toString(), { method: "GET" });
   const cached = await edgeCache().match(cacheKey);
@@ -387,6 +452,9 @@ app.onError((error) => {
   }
   if (error instanceof CloudflareError) {
     return json({ ok: false, message: error.message, code: "cloudflare_sync_failed" }, error.status);
+  }
+  if (error instanceof RegistrarLookupError) {
+    return json({ ok: false, message: error.message, code: error.code }, error.status);
   }
   const status = error.name === "PayloadTooLarge" ? 413 : error.name === "BadJson" ? 400 : error.name === "ConfigMissing" ? 503 : 500;
   return json({ ok: false, message: error.message || "Có lỗi xảy ra." }, status);

@@ -38,10 +38,12 @@ describe("normalizeSettings", () => {
     }, {
       telegram: { enabled: false, chat_id: "", bot_token_encrypted: "v1:test" },
       cloudflare: { api_token_encrypted: "", last_sync: "", zones: [] },
+      registrar: { bkns_api_key_encrypted: "v1:bkns" },
       reminders: { days: [30], notify_overdue: true, repeat_after_days: 1 },
       last_run: null
     });
     expect(settings.telegram.bot_token_encrypted).toBe("v1:test");
+    expect(settings.registrar.bkns_api_key_encrypted).toBe("v1:bkns");
     expect(settings.reminders.days).toEqual([1, 7, 30]);
   });
 

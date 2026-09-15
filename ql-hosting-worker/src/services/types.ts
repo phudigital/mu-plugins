@@ -68,18 +68,40 @@ export interface CloudflareSettings {
   zones: CloudflareZoneInfo[];
 }
 
+export interface RegistrarSettings {
+  bkns_api_key_encrypted?: string;
+}
+
+export interface DomainRegistrarRecord {
+  domain: string;
+  registrar: string;
+  provider: string;
+  source: string;
+  registered: boolean | null;
+  created_at: string;
+  expires_at: string;
+  nameservers: string[];
+  statuses: string[];
+  checked_at: string;
+  error: string;
+}
+
 export interface SettingsDocument {
   telegram: TelegramSettings;
   cloudflare: CloudflareSettings;
+  registrar: RegistrarSettings;
   reminders: ReminderSettings;
   last_run: RunSummary | null;
 }
 
-export interface PublicSettings extends Omit<SettingsDocument, "telegram" | "cloudflare"> {
+export interface PublicSettings extends Omit<SettingsDocument, "telegram" | "cloudflare" | "registrar"> {
   username: string;
   telegram: Omit<TelegramSettings, "bot_token_encrypted">;
   cloudflare: Omit<CloudflareSettings, "api_token_encrypted"> & {
     has_api_token: boolean;
+  };
+  registrar: {
+    has_bkns_api_key: boolean;
   };
 }
 

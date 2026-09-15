@@ -1,6 +1,95 @@
 import { hashPassword } from "./crypto";
 import { defaultBrand, defaultSettings, normalizeBrand, normalizeSettings, normalizeUsername } from "./normalize";
-import type { AuthState, BrandDocument, DocumentRow, Env, PasswordRecord, SettingsDocument } from "./types";
+import type { AuthState, BrandDocument, DocumentRow, DomainRegistrarRecord, Env, PasswordRecord, SettingsDocument } from "./types";
+
+type RegistrarRow = Omit<DomainRegistrarRecord, "registered" | "nameservers" | "statuses"> & {
+  registered: number | null;
+  nameservers_json: string;
+  statuses_json: string;
+};
+
+function parseStringArray(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function registrarFromRow(row: RegistrarRow): DomainRegistrarRecord {
+  return {
+    domain: row.domain,
+    registrar: row.registrar,
+    provider: row.provider,
+    source: row.source,
+    registered: row.registered === null ? null : Boolean(row.registered),
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+    nameservers: parseStringArray(row.nameservers_json),
+    statuses: parseStringArray(row.statuses_json),
+    checked_at: row.checked_at,
+    error: row.error
+  };
+}
+
+export async function listDomainRegistrars(env: Env): Promise<DomainRegistrarRecord[]> {
+  const result = await env.DB.prepare(`
+    SELECT domain, registrar, provider, source, registered, created_at, expires_at,
+           nameservers_json, statuses_json, checked_at, error
+    FROM domain_registrar ORDER BY domain
+  `).all<RegistrarRow>();
+  return (result.results || []).map(registrarFromRow);
+}
+
+export async function getDomainRegistrar(env: Env, domain: string): Promise<DomainRegistrarRecord | null> {
+  const row = await env.DB.prepare(`
+    SELECT domain, registrar, provider, source, registered, created_at, expires_at,
+           nameservers_json, statuses_json, checked_at, error
+    FROM domain_registrar WHERE domain = ?
+  `).bind(domain).first<RegistrarRow>();
+  return row ? registrarFromRow(row) : null;
+}
+
+export async function saveDomainRegistrar(env: Env, record: DomainRegistrarRecord): Promise<DomainRegistrarRecord> {
+  await env.DB.prepare(`
+    INSERT INTO domain_registrar (
+      domain, registrar, provider, source, registered, created_at, expires_at,
+      nameservers_json, statuses_json, checked_at, error
+    ) VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(domain) DO UPDATE SET
+      registrar = excluded.registrar,
+      source = excluded.source,
+      registered = excluded.registered,
+      created_at = excluded.created_at,
+      expires_at = excluded.expires_at,
+      nameservers_json = excluded.nameservers_json,
+      statuses_json = excluded.statuses_json,
+      checked_at = excluded.checked_at,
+      error = excluded.error
+  `).bind(
+    record.domain,
+    record.registrar,
+    record.source,
+    record.registered === null ? null : Number(record.registered),
+    record.created_at,
+    record.expires_at,
+    JSON.stringify(record.nameservers),
+    JSON.stringify(record.statuses),
+    record.checked_at,
+    record.error
+  ).run();
+  return (await getDomainRegistrar(env, record.domain))!;
+}
+
+export async function saveDomainProvider(env: Env, domain: string, provider: string): Promise<DomainRegistrarRecord> {
+  await env.DB.prepare(`
+    INSERT INTO domain_registrar (domain, provider, provider_updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(domain) DO UPDATE SET provider = excluded.provider, provider_updated_at = excluded.provider_updated_at
+  `).bind(domain, provider, new Date().toISOString()).run();
+  return (await getDomainRegistrar(env, domain))!;
+}
 
 export async function getDocument(env: Env, key: "brand" | "settings"): Promise<DocumentRow | null> {
   return env.DB.prepare("SELECT key, json, version, updated_at FROM documents WHERE key = ?").bind(key).first<DocumentRow>();

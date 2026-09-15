@@ -6,6 +6,7 @@ const state = {
   settings: null,
   brandVersion: 0,
   settingsVersion: 0,
+  registrars: [],
   turnstileToken: '',
   dirty: false,
   jsonDirty: false,
@@ -243,6 +244,34 @@ function cloudflareSyncLabel() {
   return `Lần gần nhất: ${time} · ${zones.length} zone. Domain đã có được giữ nguyên dữ liệu.`;
 }
 
+function registrarMap() {
+  return new Map((state.registrars || []).map((record) => [record.domain, record]));
+}
+
+function effectiveProvider(record) {
+  return record?.provider || record?.registrar || '';
+}
+
+function sourceLabel(source) {
+  if (source === 'bkns') return 'BKNS / VNNIC';
+  if (source === 'rdap') return 'RDAP';
+  return 'Chưa kiểm tra';
+}
+
+function registryDate(value, includeTime = false) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return includeTime ? date.toLocaleString('vi-VN') : date.toLocaleDateString('vi-VN');
+}
+
+function updateRegistrarState(record) {
+  const index = state.registrars.findIndex((item) => item.domain === record.domain);
+  if (index >= 0) state.registrars[index] = record;
+  else state.registrars.push(record);
+  state.registrars.sort((a, b) => a.domain.localeCompare(b.domain));
+}
+
 function blankNotify() {
   return { active: false, type: 'info', message: '', button_text: '', button_url: '' };
 }
@@ -458,6 +487,7 @@ function renderDomains() {
   const list = $('#domainList');
   const query = $('#domainSearch').value.trim().toLowerCase();
   const cloudflareZones = new Map((state.settings?.cloudflare?.zones || []).map((zone) => [zone.name, zone]));
+  const registrars = registrarMap();
   const entries = Object.entries(state.brand.domains || {})
     .filter(([domain]) => !query || domain.toLowerCase().includes(query))
     .sort(([a], [b]) => a.localeCompare(b));
@@ -465,12 +495,14 @@ function renderDomains() {
   list.innerHTML = entries.length ? entries.map(([domain, info]) => {
     const status = statusFor(info);
     const cfStatus = cloudflareStatus(cloudflareZones.get(domain));
+    const registry = registrars.get(domain);
+    const provider = effectiveProvider(registry);
     return `
       <article class="domain-row" data-domain="${escapeHtml(domain)}">
         <button class="domain-summary" type="button">
           <span>
             <span class="domain-name">${escapeHtml(domain)}${cfStatus ? ` <span class="cloudflare-badge ${cfStatus.className}" title="Zone có trong tài khoản Cloudflare">${escapeHtml(cfStatus.label)}</span>` : ''}</span>
-            <span class="domain-meta">${escapeHtml(toDisplayDate(info.expire) || 'Chưa có ngày hết hạn')}${info.hosting_note ? ` · ${escapeHtml(info.hosting_note)}` : ''}</span>
+            <span class="domain-meta">${escapeHtml(toDisplayDate(info.expire) || 'Chưa có ngày hết hạn')}${info.hosting_note ? ` · ${escapeHtml(info.hosting_note)}` : ''}${provider ? ` · ${escapeHtml(provider)}` : ''}</span>
           </span>
           <span class="status ${status.className}">${escapeHtml(status.label)}</span>
         </button>
@@ -546,6 +578,104 @@ function renderDomains() {
 
   $('#cfSyncSummary').textContent = cloudflareSyncLabel();
   $('#cfToken').placeholder = state.settings?.cloudflare?.has_api_token ? 'Đã lưu token · để trống nếu không đổi' : 'Nhập token Cloudflare';
+}
+
+function renderRegistrars() {
+  const records = registrarMap();
+  const managedDomains = Object.keys(state.brand?.domains || {}).sort((a, b) => a.localeCompare(b));
+  const domains = Array.from(new Set([...managedDomains, ...records.keys()])).sort((a, b) => a.localeCompare(b));
+  const query = ($('#registrarSearch')?.value || '').trim().toLowerCase();
+  const visible = domains.filter((domain) => {
+    const record = records.get(domain);
+    return !query || [domain, record?.registrar, record?.provider, record?.source].some((value) => String(value || '').toLowerCase().includes(query));
+  });
+  const checked = managedDomains.filter((domain) => records.get(domain)?.checked_at).length;
+  const known = managedDomains.filter((domain) => records.get(domain)?.registrar).length;
+  const providerKnown = managedDomains.filter((domain) => records.get(domain)?.provider).length;
+
+  $('#registrarCheckedCount').textContent = checked;
+  $('#registrarKnownCount').textContent = known;
+  $('#providerKnownCount').textContent = providerKnown;
+  $('#registrarUnknownCount').textContent = Math.max(0, managedDomains.length - known);
+  $('#managedDomainOptions').innerHTML = managedDomains.map((domain) => `<option value="${escapeHtml(domain)}"></option>`).join('');
+  $('#bknsApiKey').placeholder = state.settings?.registrar?.has_bkns_api_key ? 'Đã lưu key · để trống nếu không đổi' : 'Nhập key rồi bấm Lưu';
+
+  $('#registrarList').innerHTML = visible.length ? visible.map((domain) => {
+    const record = records.get(domain);
+    const provider = effectiveProvider(record);
+    const providerIsManual = Boolean(record?.provider);
+    const statusClass = record?.registered === false ? 'warn' : record?.registrar ? 'ok' : '';
+    const statusText = record?.registered === false ? 'Chưa đăng ký' : record?.registrar ? 'Đã xác định' : 'Chưa rõ';
+    return `
+      <article class="registrar-row" data-registrar-domain="${escapeHtml(domain)}">
+        <div class="registrar-row-head">
+          <div>
+            <strong>${escapeHtml(domain)}</strong>
+            <p class="muted">${provider ? `${providerIsManual ? 'Nơi mua' : 'Theo registry'}: ${escapeHtml(provider)}` : 'Chưa có thông tin nhà cung cấp'}</p>
+          </div>
+          <span class="status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="registrar-facts">
+          <div><small>Nhà đăng ký (registry)</small><strong>${escapeHtml(record?.registrar || '—')}</strong></div>
+          <div><small>Nguồn</small><strong>${escapeHtml(sourceLabel(record?.source))}</strong></div>
+          <div><small>Ngày hết hạn registry</small><strong>${escapeHtml(registryDate(record?.expires_at))}</strong></div>
+          <div><small>Kiểm tra gần nhất</small><strong>${escapeHtml(registryDate(record?.checked_at, true))}</strong></div>
+        </div>
+        ${record?.error ? `<p class="registrar-warning">${escapeHtml(record.error)}</p>` : ''}
+        <div class="registrar-actions">
+          <label><span>Nơi mua thực tế (nếu qua đại lý)</span><input data-provider-input type="text" maxlength="120" value="${escapeHtml(record?.provider || '')}" placeholder="Ví dụ: P.A Việt Nam, Namecheap..."></label>
+          <button class="ghost" data-save-provider type="button">Lưu nơi mua</button>
+          <button class="secondary" data-check-registrar type="button">${record?.checked_at ? 'Kiểm tra lại' : 'Kiểm tra'}</button>
+        </div>
+      </article>
+    `;
+  }).join('') : '<p class="empty">Không có tên miền phù hợp.</p>';
+
+  $$('.registrar-row').forEach((row) => {
+    const domain = row.dataset.registrarDomain;
+    $('[data-check-registrar]', row).addEventListener('click', (event) => lookupRegistrar(domain, true, event.currentTarget));
+    $('[data-save-provider]', row).addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const input = $('[data-provider-input]', row);
+      button.disabled = true;
+      try {
+        const result = await api('registrar-provider', { domain, provider: input.value.trim() });
+        updateRegistrarState(result.registrar);
+        renderRegistrars();
+        renderDomains();
+        toast(result.message || 'Đã lưu nơi mua thực tế.');
+      } catch (error) {
+        toast(error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+}
+
+async function lookupRegistrar(domain, force = true, button = null) {
+  const originalLabel = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Đang tra...';
+  }
+  try {
+    const result = await api('registrar-lookup', { domain, force });
+    updateRegistrarState(result.registrar);
+    renderRegistrars();
+    renderDomains();
+    const found = effectiveProvider(result.registrar);
+    toast(found ? `${result.registrar.domain}: ${found}.` : `${result.registrar.domain}: chưa xác định được nhà đăng ký.`);
+    return result.registrar;
+  } catch (error) {
+    toast(error.message, true);
+    throw error;
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
 }
 
 function renderContacts() {
@@ -694,6 +824,7 @@ function renderAll() {
   renderCalendar();
   renderBrand();
   renderDomains();
+  renderRegistrars();
   renderContacts();
   renderTelegram();
   syncJson();
@@ -717,6 +848,7 @@ async function loadData() {
     const data = await api('data');
     state.brand = data.brand;
     state.settings = data.settings;
+    state.registrars = data.registrars || [];
     state.brandVersion = data.brand_version;
     state.settingsVersion = data.settings_version;
     $('#sessionLabel').textContent = `Đăng nhập: ${data.settings.username || 'phudigital'} · hosting.pdl.vn/brand.json`;
@@ -812,11 +944,53 @@ function wireActions() {
     panel.hidden = expanded;
   });
   $('#domainSearch').addEventListener('input', renderDomains);
+  $('#registrarSearch').addEventListener('input', renderRegistrars);
+  $('#registrarLookupForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const input = $('#registrarLookupDomain');
+    const button = $('#registrarLookupBtn');
+    try {
+      const record = await lookupRegistrar(input.value, true, button);
+      input.value = record.domain;
+    } catch (_) {
+      input.focus();
+    }
+  });
+  $('#checkInternationalBtn').addEventListener('click', async () => {
+    const domains = Object.keys(state.brand?.domains || {}).filter((domain) => !domain.endsWith('.vn'));
+    const button = $('#checkInternationalBtn');
+    const label = $('span:last-child', button);
+    button.disabled = true;
+    let completed = 0;
+    let failed = 0;
+    try {
+      for (let index = 0; index < domains.length; index += 3) {
+        const batch = domains.slice(index, index + 3);
+        await Promise.all(batch.map(async (domain) => {
+          try {
+            const result = await api('registrar-lookup', { domain, force: false });
+            updateRegistrarState(result.registrar);
+          } catch (_) {
+            failed += 1;
+          } finally {
+            completed += 1;
+            if (label) label.textContent = `${completed}/${domains.length}`;
+          }
+        }));
+        renderRegistrars();
+        renderDomains();
+      }
+      toast(`Đã kiểm tra ${completed - failed}/${domains.length} tên miền quốc tế${failed ? `, ${failed} lỗi` : ''}.`, failed > 0);
+    } finally {
+      button.disabled = false;
+      if (label) label.textContent = 'Kiểm tra quốc tế';
+    }
+  });
   $('#jsonEditor').addEventListener('input', () => {
     state.jsonDirty = true;
     markDirty();
   });
-  ['tgEnabled', 'tgToken', 'tgChatId', 'reminderDays', 'repeatAfter', 'notifyOverdue'].forEach((id) => {
+  ['tgEnabled', 'tgToken', 'tgChatId', 'reminderDays', 'repeatAfter', 'notifyOverdue', 'bknsApiKey'].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', markDirty);
@@ -917,12 +1091,14 @@ function wireActions() {
 async function saveSettings() {
   const token = $('#tgToken').value.trim();
   const cloudflareToken = $('#cfToken').value.trim();
+  const bknsApiKey = $('#bknsApiKey').value.trim();
   const settings = {
     telegram: {
       enabled: $('#tgEnabled').checked,
       chat_id: $('#tgChatId').value.trim(),
     },
     cloudflare: {},
+    registrar: {},
     reminders: {
       days: $('#reminderDays').value.split(',').map((value) => Number(value.trim())).filter((value) => Number.isFinite(value)),
       notify_overdue: $('#notifyOverdue').checked,
@@ -931,12 +1107,15 @@ async function saveSettings() {
   };
   if (token) settings.telegram.bot_token = token;
   if (cloudflareToken) settings.cloudflare.api_token = cloudflareToken;
+  if (bknsApiKey) settings.registrar.bkns_api_key = bknsApiKey;
   const result = await api('save-settings', { settings, version: state.settingsVersion });
   state.settings = result.settings;
   state.settingsVersion = result.version;
   $('#tgToken').value = '';
   $('#cfToken').value = '';
+  $('#bknsApiKey').value = '';
   renderTelegram();
+  renderRegistrars();
 }
 
 async function boot() {

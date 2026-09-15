@@ -2,7 +2,7 @@
 
 Worker quản trị QL Hosting chạy tại `https://hosting.pdl.vn`.
 
-Phiên bản hiện tại: **0.2.0**.
+Phiên bản hiện tại: **0.3.0**.
 
 ## URL
 
@@ -63,6 +63,23 @@ Tab **Site** có thể đọc tất cả zone Cloudflare và thêm domain còn t
 Tạo Custom API Token tại `https://dash.cloudflare.com/profile/api-tokens` với quyền đọc tối thiểu `Zone : Zone : Read` cho các zone cần quản lý. Dán token vào tab Site và bấm **Đồng bộ**. Token được mã hóa bằng `SETTINGS_ENCRYPTION_KEY` trước khi lưu trong D1; API quản trị chỉ trả cờ `has_api_token`, không trả token hoặc token rút gọn.
 
 Worker chỉ gọi `GET /client/v4/zones`, phân trang 50 zone/trang và dừng an toàn nếu vượt quá 1.000 zone. Không có thao tác ghi nào lên Cloudflare.
+
+## Tra cứu nhà cung cấp tên miền
+
+Tab **NCC** tách hai khái niệm để tránh ghi nhận sai:
+
+- **Nhà đăng ký (registry)**: tự động đọc từ dữ liệu đăng ký công khai. Tên miền quốc tế dùng RDAP và danh mục bootstrap chính thức của IANA; kết quả được lưu D1 và dùng lại trong 12 giờ.
+- **Nơi mua thực tế**: người quản trị nhập tay khi domain mua qua đại lý/reseller. Giá trị này được lưu riêng và không bị lần tra cứu registry tiếp theo ghi đè.
+
+Tên miền `.vn` không có RDAP công khai nên cần API key BKNS. Nhập key trong tab NCC rồi bấm **Lưu**; key được mã hóa bằng `SETTINGS_ENCRYPTION_KEY`, API chỉ trả cờ `has_bkns_api_key`. Key demo BKNS giới hạn 2 lượt/phút nên giao diện chỉ kiểm tra `.vn` từng tên miền; nút **Kiểm tra quốc tế** không gọi `.vn`.
+
+Các endpoint quản trị mới đều yêu cầu phiên đăng nhập:
+
+- `GET /api/registrars`: đọc kết quả đã lưu.
+- `POST /api/registrar-lookup`: tra một domain qua RDAP hoặc BKNS.
+- `POST /api/registrar-provider`: lưu nơi mua thực tế mà không sửa registrar tự động.
+
+Migration `0002_domain_registrar.sql` tạo bảng riêng, vì vậy cấu trúc public `brand.json` và metadata hosting hiện có không thay đổi.
 
 ## Deploy
 

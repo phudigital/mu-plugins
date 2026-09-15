@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { build } from "esbuild";
 import { convertV4MiniflareOptions, Miniflare, Response as TestResponse } from "miniflare";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -28,6 +28,17 @@ describe("Worker login and dashboard session", () => {
       d1Databases: ["DB"],
       bindings: { ...bindings, ...overrides },
       outboundService: async (request) => {
+        if (request.url === "https://data.iana.org/rdap/dns.json") {
+          return TestResponse.json({ services: [[["com"], ["https://rdap.registry.test/"]]] });
+        }
+        if (request.url === "https://rdap.registry.test/domain/example.com") {
+          return TestResponse.json({
+            entities: [{ roles: ["registrar"], vcardArray: ["vcard", [["fn", {}, "text", "Example Registrar"]]] }],
+            events: [{ eventAction: "expiration", eventDate: "2028-05-01T00:00:00Z" }],
+            nameservers: [{ ldhName: "ns1.example.net" }],
+            status: ["active"]
+          });
+        }
         if (request.url.startsWith("https://api.cloudflare.com/client/v4/zones")) {
           expect(request.headers.get("authorization")).toBe("Bearer cf-read-token");
           return TestResponse.json({
@@ -69,14 +80,17 @@ describe("Worker login and dashboard session", () => {
     script = bundled.outputFiles[0].text;
     worker = new Miniflare(options());
     const db = await worker.getD1Database("DB");
-    const migration = readFileSync("migrations/0001_initial.sql", "utf8");
-    await db.batch(migration.split(";").map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
+    for (const file of readdirSync("migrations").filter(name => name.endsWith(".sql")).sort()) {
+      const migration = readFileSync(`migrations/${file}`, "utf8");
+      await db.batch(migration.split(";").map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
+    }
   }, 30000);
 
   beforeEach(async () => {
     verifiedTokens = new Set();
     const db = await worker.getD1Database("DB");
     await db.prepare("DELETE FROM auth_state").run();
+    await db.prepare("DELETE FROM domain_registrar").run();
     await db.prepare("UPDATE documents SET json = ?, version = 1 WHERE key = 'brand'").bind(JSON.stringify({
       company: "PDL",
       address: "",
@@ -209,5 +223,46 @@ describe("Worker login and dashboard session", () => {
     });
     expect(second.status).toBe(200);
     expect(await second.json()).toMatchObject({ added: [], zone_count: 2 });
+  });
+
+  it("looks up registrar data and stores the actual purchase provider separately", async () => {
+    const loggedIn = await login("registrar-login");
+    const headers = {
+      Cookie: (loggedIn.headers.get("set-cookie") || "").split(";")[0],
+      Origin: origin,
+      "Content-Type": "application/json"
+    };
+    const settings = await worker.dispatchFetch(`${origin}/api/save-settings`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ settings: { registrar: { bkns_api_key: "private-bkns-key" } }, version: 1 })
+    });
+    expect(settings.status).toBe(200);
+    const settingsData = await settings.json();
+    expect(settingsData).toMatchObject({ settings: { registrar: { has_bkns_api_key: true } }, version: 2 });
+    expect(JSON.stringify(settingsData)).not.toContain("private-bkns-key");
+
+    const lookup = await worker.dispatchFetch(`${origin}/api/registrar-lookup`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ domain: "https://www.example.com/path", force: true })
+    });
+    expect(lookup.status).toBe(200);
+    expect(await lookup.json()).toMatchObject({
+      registrar: { domain: "example.com", registrar: "Example Registrar", provider: "", source: "rdap" }
+    });
+
+    const provider = await worker.dispatchFetch(`${origin}/api/registrar-provider`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ domain: "example.com", provider: "Đại lý PDL" })
+    });
+    expect(provider.status).toBe(200);
+    expect(await provider.json()).toMatchObject({ registrar: { registrar: "Example Registrar", provider: "Đại lý PDL" } });
+
+    const data = await worker.dispatchFetch(`${origin}/api/data`, { headers });
+    expect(await data.json()).toMatchObject({ registrars: [{ domain: "example.com", provider: "Đại lý PDL" }] });
+    const db = await worker.getD1Database("DB");
+    expect(String(await db.prepare("SELECT json FROM documents WHERE key = 'settings'").first("json"))).not.toContain("private-bkns-key");
   });
 });

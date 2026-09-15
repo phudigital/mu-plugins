@@ -153,6 +153,9 @@ export function defaultSettings(): SettingsDocument {
       last_sync: "",
       zones: []
     },
+    registrar: {
+      bkns_api_key_encrypted: ""
+    },
     reminders: {
       days: [30, 14, 7, 3, 1, 0],
       notify_overdue: true,
@@ -172,6 +175,9 @@ export function normalizeSettings(value: unknown, previous: SettingsDocument = d
     : {};
   const cloudflare = input.cloudflare && typeof input.cloudflare === "object"
     ? input.cloudflare as Record<string, unknown>
+    : {};
+  const registrar = input.registrar && typeof input.registrar === "object"
+    ? input.registrar as Record<string, unknown>
     : {};
 
   const zones: CloudflareZoneInfo[] = [];
@@ -209,6 +215,9 @@ export function normalizeSettings(value: unknown, previous: SettingsDocument = d
       api_token_encrypted: normalizeText(cloudflare.api_token_encrypted ?? previous.cloudflare.api_token_encrypted),
       last_sync: normalizeText(cloudflare.last_sync ?? previous.cloudflare.last_sync),
       zones
+    },
+    registrar: {
+      bkns_api_key_encrypted: normalizeText(registrar.bkns_api_key_encrypted ?? previous.registrar.bkns_api_key_encrypted)
     },
     reminders: {
       days: days.length ? days : previous.reminders.days,

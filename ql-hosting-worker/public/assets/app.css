@@ -796,6 +796,195 @@ body.is-dirty #saveBtn {
   font-weight: 800;
 }
 
+.registrar-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.75fr);
+  align-items: end;
+  gap: 24px;
+  padding: 22px;
+  border: 1px solid #b8c8f5;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(255, 147, 36, 0.2), transparent 30%),
+    linear-gradient(135deg, #eef3ff 0%, #fff 62%);
+}
+
+.registrar-hero::after {
+  content: "";
+  position: absolute;
+  right: -42px;
+  bottom: -72px;
+  width: 180px;
+  height: 180px;
+  border: 24px solid rgba(34, 73, 185, 0.055);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.registrar-hero h2 {
+  margin-bottom: 8px;
+  font-size: clamp(22px, 3vw, 31px);
+  letter-spacing: -0.025em;
+}
+
+.registrar-hero p:last-child,
+.bkns-card p:last-child {
+  margin-bottom: 0;
+}
+
+.registrar-lookup-form {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(34, 73, 185, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-soft);
+}
+
+.registrar-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.registrar-stats article {
+  display: grid;
+  gap: 5px;
+  min-height: 86px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff, #f7f9fc);
+  box-shadow: var(--shadow-soft);
+}
+
+.registrar-stats small,
+.registrar-facts small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.registrar-stats strong {
+  color: var(--accent-deep);
+  font-size: 27px;
+}
+
+.bkns-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.65fr) auto;
+  align-items: end;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e2c28e;
+  border-radius: 10px;
+  background: #fffaf1;
+}
+
+.text-link {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.text-link:hover {
+  background: var(--accent-soft);
+}
+
+.registrar-toolbar {
+  align-items: end;
+}
+
+.registrar-list {
+  display: grid;
+  gap: 12px;
+}
+
+.registrar-row {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff, #fafbfd);
+  box-shadow: var(--shadow-soft);
+}
+
+.registrar-row-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.registrar-row-head > div > strong {
+  display: block;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.registrar-row-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.registrar-facts {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr 0.85fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+
+.registrar-facts > div {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 11px;
+  background: #f8fafd;
+}
+
+.registrar-facts strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.registrar-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid #d98b13;
+  border-radius: 5px;
+  background: #fff7e8;
+  color: #79500c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.registrar-actions {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+}
+
 .cloudflare-badge {
   display: inline-flex;
   align-items: center;
@@ -1117,10 +1306,35 @@ body.is-dirty #saveBtn {
   .signal-card {
     min-height: 82px;
   }
+
+  .registrar-hero,
+  .bkns-card {
+    grid-template-columns: 1fr;
+  }
+
+  .bkns-card .text-link {
+    justify-content: flex-start;
+  }
+
+  .registrar-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
   .cloudflare-sync-card {
+    grid-template-columns: 1fr;
+  }
+
+  .registrar-lookup-form,
+  .registrar-actions,
+  .registrar-stats,
+  .registrar-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .registrar-toolbar {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
